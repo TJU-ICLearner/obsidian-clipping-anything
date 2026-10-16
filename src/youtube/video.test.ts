@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
-import { JSDOM } from 'jsdom';
+const { JSDOM } = require('jsdom');
 import { describe, expect, it, vi } from 'vitest';
 
 const url = 'https://www.youtube.com/watch?v=M7lc1UVf-VE';

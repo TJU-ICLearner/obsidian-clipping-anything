@@ -20,6 +20,7 @@
 					<ul>
 						<li data-section="general"><div class="nav-item-icon"><i data-lucide="paperclip"></i></div><span data-i18n="general">General</span></li>
 						<li data-section="bilibili"><div class="nav-item-icon"><i data-lucide="clapperboard"></i></div><span>B 站视频</span></li>
+						<li data-section="youtube"><div class="nav-item-icon"><i data-lucide="play"></i></div><span>YouTube 视频</span></li>
 						<li data-section="reader"><div class="nav-item-icon"><i data-lucide="book-open"></i></div><span data-i18n="reader">Reader</span></li>
 						<li data-section="highlighter"><div class="nav-item-icon"><i data-lucide="highlighter"></i></div><span data-i18n="highlighter">Highlighter</span></li>
 						<li data-section="interpreter"><div class="nav-item-icon"><i data-lucide="quote"></i></div><span data-i18n="interpreter">Interpreter</span></li>
@@ -53,6 +54,18 @@
 							<p id="bili-settings-vault-status" role="status" aria-live="polite"></p>
 						</div>
 						<iframe id="bilibili-settings-frame" title="B 站视频设置" src="bilibili/options.html?embedded=1"></iframe>
+					</div>
+					<div id="youtube-section" class="settings-section">
+						<div class="settings-section-header"><h2>YouTube 视频设置</h2></div>
+						<p class="anything-settings-intro">网页、B 站与 YouTube 共用仓库列表；以下默认选项只作用于 YouTube 模式。</p>
+						<div class="anything-vault-settings">
+							<label for="youtube-settings-vault">默认仓库</label><p>选择已添加的 Obsidian 仓库，或添加一个新仓库。</p>
+							<select id="youtube-settings-vault"><option value="">当前打开的仓库</option></select>
+							<div class="anything-vault-add"><input id="youtube-settings-new-vault" type="text" placeholder="Obsidian 仓库准确名称"><button id="youtube-settings-add-vault" type="button">添加并选中</button></div>
+							<label for="youtube-settings-folder">默认目标文件夹</label><p>笔记名称自动包含标题、视频 ID、时间和随机标识。</p>
+							<input id="youtube-settings-folder" type="text" value="Clippings/YouTube">
+							<p id="youtube-settings-status" role="status" aria-live="polite"></p>
+						</div>
 					</div>
 					<div id="general-section" class="settings-section">
 						<div class="settings-section-header">
