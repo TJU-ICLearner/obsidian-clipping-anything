@@ -1,0 +1,15 @@
+.oca-player-dock { position: static; box-sizing: border-box; width: min(100%, 760px); margin: 0 auto 1em; border: 1px solid var(--background-modifier-border); border-radius: 12px; overflow: hidden; background: var(--background-secondary); box-shadow: 0 8px 24px rgb(0 0 0 / 12%); }
+.oca-player-placeholder { margin: 0.5em 0; color: var(--text-muted); font-size: var(--font-smaller); }
+.oca-player-header { display: flex; align-items: center; gap: 8px; padding: 10px 12px; }
+.oca-player-title { flex: 1; font-weight: 700; }
+.oca-player-header button { padding: 4px 8px; font-size: 12px; }
+.oca-iframe { display: block; width: 100%; aspect-ratio: 16 / 9; border: 0; background: #0a0a0a; }
+.oca-transcript { max-height: min(24vh, 200px); overflow: auto; padding: 8px; border-top: 1px solid var(--background-modifier-border); }
+.oca-cue { display: flex; width: 100%; gap: 12px; align-items: baseline; padding: 6px 8px; border-radius: 6px; background: transparent; color: var(--text-normal); text-align: left; cursor: pointer; }
+.oca-cue:hover { background: var(--background-modifier-hover); }
+.oca-cue.is-active { background: var(--interactive-accent); color: var(--text-on-accent); }
+.oca-cue-time { flex: none; min-width: 42px; font-variant-numeric: tabular-nums; font-weight: 700; }
+.oca-cue-text { flex: 1; }
+.oca-player-hint { padding: 8px 12px; color: var(--text-muted); font-size: 12px; }
+.oca-note-timestamp { cursor: pointer; color: var(--text-accent); }
+.oca-note-timestamp:hover, .oca-note-timestamp:focus-visible { text-decoration: underline; outline: 2px solid var(--interactive-accent); outline-offset: 2px; }

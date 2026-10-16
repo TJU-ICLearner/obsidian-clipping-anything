@@ -1,0 +1,12 @@
+#bilibili-section { max-width: 780px; margin-bottom: 24px; }
+#bilibili-section .settings-section-header { margin-bottom: 8px; }
+.anything-settings-intro { margin: 0 0 16px; color: var(--text-muted); font-size: 13px; line-height: 1.5; }
+.anything-vault-settings { padding: 16px; margin-bottom: 16px; border: 1px solid var(--background-modifier-border); border-radius: 12px; background: var(--background-primary-alt); }
+.anything-vault-settings label { display: block; margin-bottom: 3px; font-weight: 700; }
+.anything-vault-settings p { margin: 0 0 10px; color: var(--text-muted); font-size: 13px; }
+.anything-vault-settings select { width: 100%; min-height: 36px; }
+.anything-vault-add { display: grid; grid-template-columns: minmax(0, 1fr) max-content; gap: 8px; margin-top: 9px; }
+.anything-vault-add input { width: 100%; min-width: 0; min-height: 36px; }
+.anything-vault-add button { width: auto; min-width: 104px; padding: 0 12px; border-radius: 8px; background: #bbeb6f; color: #182027; font-weight: 700; }
+.anything-vault-settings #bili-settings-vault-status { min-height: 16px; margin: 8px 0 0; }
+#bilibili-settings-frame { display: block; width: 100%; height: calc(100vh - 320px); min-height: 400px; border: 0; background: transparent; }

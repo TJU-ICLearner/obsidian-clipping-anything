@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Obsidian Clipping Anything · B站</title>
+    <link rel="stylesheet" href="./popup.css" />
+  </head>
+  <body>
+    <main class="popup">
+      <header class="app-header">
+        <div class="brand-row">
+          <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+          <div class="brand-text"><strong>Clipping Anything</strong><small>保存你想要的一切</small></div>
+          <button id="settingsBtn" type="button" class="header-button" aria-label="打开设置">设置</button>
+        </div>
+        <nav class="mode-switch" aria-label="剪藏模式">
+          <a href="../popup.html?from=bilibili">网页剪藏</a>
+          <span class="active" aria-current="page">B站视频</span>
+          <button id="aiBtn" type="button">AI 助手 <span aria-hidden="true">↗</span></button>
+        </nav>
+      </header>
+
+      <div class="workspace">
+        <section class="video-card" aria-label="当前视频">
+          <div class="video-card-top"><span class="source-pill">BILIBILI · VIDEO</span><span id="status" class="status">准备就绪</span></div>
+          <h1 id="propTitle">正在读取视频…</h1>
+          <div id="propUrl" class="video-url">—</div>
+          <div class="video-meta"><span>抓取日期 <b id="propCreated">—</b></span><span>标签 <b id="propTags">—</b></span></div>
+        </section>
+
+        <section class="transcript-panel" aria-label="字幕">
+          <div class="section-heading"><div><span class="eyebrow">TRANSCRIPT</span><h2>字幕内容</h2></div><span id="previewCount" class="count">等待抓取</span></div>
+          <label class="field-label" for="subtitleSelect">字幕轨道</label>
+          <select id="subtitleSelect"><option>正在读取…</option></select>
+          <textarea id="preview" readonly wrap="soft" aria-label="字幕预览" placeholder="字幕会显示在这里"></textarea>
+        </section>
+
+        <section class="destination" aria-label="保存位置">
+          <div class="destination-head"><div><span class="eyebrow">DESTINATION</span><h2>保存位置</h2></div><span class="no-api">无需 REST API</span></div>
+          <label class="field-label" for="vaultSelect">Obsidian 仓库（主按钮）</label>
+          <div class="vault-row"><select id="vaultSelect"><option value="">当前打开的仓库</option></select><button id="addVaultToggle" class="vault-add-toggle" type="button">+ 添加仓库</button></div>
+          <div id="addVaultRow" class="vault-add-row" hidden><input id="newVaultName" type="text" placeholder="输入 Obsidian 仓库的准确名称" aria-label="新仓库名称" /><button id="saveVaultBtn" type="button">添加</button></div>
+          <div id="noteFilepath" class="note-path" title="">—</div>
+        </section>
+      </div>
+
+      <footer class="footer">
+        <div class="save-actions">
+          <button id="sendBtn" type="button" class="save-primary">保存到 Obsidian <span aria-hidden="true">↗</span></button>
+          <button id="restBtn" type="button" class="save-rest" title="写入设置页配置的 REST 仓库；不使用上方的仓库选择">REST 直写</button>
+        </div>
+        <div class="utility-actions">
+          <button id="refreshBtn" type="button">刷新</button>
+          <button id="copyBtn" type="button">复制 Markdown</button>
+          <button id="downloadBtn" type="button">下载字幕</button>
+          <button id="readingViewBtn" type="button">阅读视图</button>
+        </div>
+        <p id="message" class="message" role="status" aria-live="polite"></p>
+      </footer>
+    </main>
+    <script src="./obsidian-uri.js"></script>
+    <script src="./popup.js"></script>
+  </body>
+</html>
