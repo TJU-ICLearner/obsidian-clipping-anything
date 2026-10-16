@@ -19,6 +19,7 @@
 		"dev:firefox": "webpack --watch --env BROWSER=firefox --mode development",
 		"dev:safari": "webpack --watch --env BROWSER=safari --mode development",
 		"build:chrome": "webpack --env BROWSER=chrome --mode production",
+		"package:release": "python3 scripts/package-release.py",
 		"build:firefox": "webpack --env BROWSER=firefox --mode production",
 		"build:safari": "webpack --env BROWSER=safari --mode production",
 		"build": "npm run build:chrome && npm run build:firefox && npm run build:safari",

@@ -34,3 +34,9 @@ CLI observations on Obsidian 1.14.4, 2026-10-17:
 | Error path | Loading an invalid ID through the API produced `onError` code `150`, which can drive a visible failure state. |
 
 User visual check: **passed**. The user played the video in this temporary note and reported that it stayed inside Obsidian without opening a browser tab. API state `1` with advancing time on the visible reading-view iframe independently confirms playback; the iframe sandbox lacks `allow-popups` and `allow-top-navigation`. The full clipper still needs end-to-end acceptance before any release.
+
+## Integrated development build check
+
+On Obsidian 1.14.4, a staged development plugin was loaded in an existing local vault using four runtime files (`manifest.json`, `main.js`, `styles.css`, `youtube-player.js`). A temporary Markdown note with the public reference video and three synthetic timestamp cues exercised the actual reading-view postprocessor. One iframe and one controller were mounted; the YouTube API reached ready. Clicking 00:10 and a rendered Markdown `00:20` timestamp sought the note-local iframe; the corresponding cue became active. The Markdown timestamp click was intercepted, so it did not navigate away. The companion plugin reloaded successfully from its installed folder.
+
+The first staging attempt exposed an Obsidian module-resolution difference: a relative `require("./youtube-player")` failed with `MODULE_NOT_FOUND` from Electron's renderer loader. The runtime now resolves the file from the plugin's absolute installation directory. This behavior is covered by the reading-view integration test. Human playback, scroll continuity, Chrome transcript extraction, and varied caption/embedding cases remain pending end-to-end acceptance.

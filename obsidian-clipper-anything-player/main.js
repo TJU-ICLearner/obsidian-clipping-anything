@@ -2,7 +2,6 @@ const { Plugin, Notice, TFile } = require("obsidian");
 const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
-const { createYouTubeController } = require("./youtube-player");
 
 class EmbeddedVideo {
   constructor() {
@@ -405,7 +404,12 @@ module.exports = class ObsidianClipperAnythingPlayer extends Plugin {
     session.observer = new MutationObserver(prepare);
     session.observer.observe(preview, { childList: true, subtree: true });
     try {
-      session.controller = createYouTubeController(iframe, videoId, {
+      if (!this.youtubeControllerFactory) {
+        const modulePath = path.join(this.app.vault.adapter.getBasePath(), this.app.vault.configDir || ".obsidian",
+          "plugins", this.manifest.id, "youtube-player.js");
+        this.youtubeControllerFactory = require(modulePath).createYouTubeController;
+      }
+      session.controller = this.youtubeControllerFactory(iframe, videoId, {
         onReady: () => { if (this.playerSessions.get(preview) === session) status.textContent = "点击字幕时间可跳转，播放进度会高亮字幕。"; },
         onTime: (seconds) => { if (this.playerSessions.get(preview) === session) showProgress(seconds); },
         onError: (error) => { if (this.playerSessions.get(preview) === session) status.textContent = error.message; },

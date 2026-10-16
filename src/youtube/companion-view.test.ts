@@ -16,16 +16,18 @@ function setup(markdown: string, embed = EMBED_URL) {
   const dom = new JSDOM(`<div class="markdown-preview-view"><div id="block"><iframe src="${embed}"></iframe></div><p><code id="time">01:05</code> line</p></div>`);
   const { document, MutationObserver } = dom.window; helpers(document);
   const instances: any[] = [];
+  const requestedModules: string[] = [];
   let postprocessor: any;
   class Plugin { app: any; register() {} registerEvent() {} registerMarkdownPostProcessor(cb: any) { postprocessor = cb; } }
   class TFile { path: string; extension = 'md'; constructor(path: string) { this.path = path; } }
   const sandbox: any = { module: { exports: {} }, URL: globalThis.URL, Buffer, document, MutationObserver, setTimeout, clearTimeout, setInterval, clearInterval,
-    require: (id: string) => id === 'obsidian' ? { Plugin, Notice: class {}, TFile } : id === './youtube-player' ? { createYouTubeController: (iframe: any, videoId: string, callbacks: any) => { const controller = { iframe, videoId, callbacks, seek: vi.fn(async () => {}), destroy: vi.fn() }; instances.push(controller); return controller; } } : require(id), };
+    require: (id: string) => { requestedModules.push(id); return id === 'obsidian' ? { Plugin, Notice: class {}, TFile } : id === '/vault/.obsidian/plugins/obsidian-clipper-anything-player/youtube-player.js' ? { createYouTubeController: (iframe: any, videoId: string, callbacks: any) => { const controller = { iframe, videoId, callbacks, seek: vi.fn(async () => {}), destroy: vi.fn() }; instances.push(controller); return controller; } } : require(id); }, };
   vm.runInNewContext(readFileSync(new URL('../../obsidian-clipper-anything-player/main.js', import.meta.url), 'utf8'), sandbox);
   const Companion = sandbox.module.exports as any;
   const plugin = new Companion();
-  plugin.app = { vault: { getAbstractFileByPath: () => new TFile('clip.md'), cachedRead: async () => markdown }, workspace: { on: () => ({}), getLeavesOfType: () => [] } };
-  return { dom, document, instances, plugin, getPostprocessor: () => postprocessor };
+  plugin.manifest = { id: 'obsidian-clipper-anything-player' };
+  plugin.app = { vault: { adapter: { getBasePath: () => '/vault' }, configDir: '.obsidian', getAbstractFileByPath: () => new TFile('clip.md'), cachedRead: async () => markdown }, workspace: { on: () => ({}), getLeavesOfType: () => [] } };
+  return { dom, document, instances, requestedModules, plugin, getPostprocessor: () => postprocessor };
 }
 const note = `---\nclip_platform: youtube\nyoutube_id: "${ID}"\n---\n\n## 字幕\n\n\`01:05\` First\n\`01:08\` Second`;
 describe('YouTube reading view integration', () => {
@@ -37,6 +39,7 @@ describe('YouTube reading view integration', () => {
     const preview = s.document.querySelector('.markdown-preview-view')!;
     expect(preview.querySelectorAll('iframe')).toHaveLength(1);
     expect(s.instances[0].videoId).toBe(ID);
+    expect(s.requestedModules).toContain('/vault/.obsidian/plugins/obsidian-clipper-anything-player/youtube-player.js');
     const time = s.document.getElementById('time')!;
     const click = new s.dom.window.MouseEvent('click', { bubbles: true, cancelable: true });
     time.dispatchEvent(click);
