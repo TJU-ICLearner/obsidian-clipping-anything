@@ -1,6 +1,6 @@
 # YouTube iframe in Obsidian: feasibility probe
 
-Status: **technical gate passed; visual acceptance pending**. This is not evidence that the full YouTube clipper works.
+Status: **feasibility gate passed**. This is not evidence that the full YouTube clipper works.
 
 ## Setup
 
@@ -33,4 +33,4 @@ CLI observations on Obsidian 1.14.4, 2026-10-17:
 | Scroll continuity | While playing, scrolling the reading view moved the iframe top to about -1605 px. The same iframe stayed connected, state remained `1` (playing), and playback time advanced from ~29.18 s to ~43.80 s. Returning to the top kept that iframe. |
 | Error path | Loading an invalid ID through the API produced `onError` code `150`, which can drive a visible failure state. |
 
-User visual check of play and extra-tab behavior: **pending**. API state `1` with advancing time on the visible reading-view iframe establishes technical playback; the iframe sandbox lacks `allow-popups` and `allow-top-navigation`. That is sufficient to proceed with the implementation probe, while the requested human observation remains a release gate. The final ZIPs must not be published until the visual check and full clipper acceptance are complete.
+User visual check: **passed**. The user played the video in this temporary note and reported that it stayed inside Obsidian without opening a browser tab. API state `1` with advancing time on the visible reading-view iframe independently confirms playback; the iframe sandbox lacks `allow-popups` and `allow-top-navigation`. The full clipper still needs end-to-end acceptance before any release.
