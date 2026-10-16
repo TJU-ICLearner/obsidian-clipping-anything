@@ -13,3 +13,5 @@
 .oca-player-hint { padding: 8px 12px; color: var(--text-muted); font-size: 12px; }
 .oca-note-timestamp { cursor: pointer; color: var(--text-accent); }
 .oca-note-timestamp:hover, .oca-note-timestamp:focus-visible { text-decoration: underline; outline: 2px solid var(--interactive-accent); outline-offset: 2px; }
+
+.oca-youtube-dock .oca-player-hint[role="status"] { min-height: 30px; }

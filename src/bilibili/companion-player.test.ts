@@ -9,7 +9,7 @@ function loadCompanion(document?: Document, MutationObserver?: typeof globalThis
   class TFile { path: string; extension: string; constructor(path: string) { this.path = path; this.extension = path.split('.').pop()!; } }
   const sandbox = {
     module: { exports: {} as any },
-    require: (id: string) => id === 'obsidian' ? { Plugin, Notice: class {}, TFile } : id === '@electron/remote' ? remote : require(id),
+    require: (id: string) => id === 'obsidian' ? { Plugin, Notice: class {}, TFile } : id === '@electron/remote' ? remote : id === './youtube-player' ? require('../../obsidian-clipper-anything-player/youtube-player.js') : require(id),
     URL,
     Buffer,
     setTimeout,

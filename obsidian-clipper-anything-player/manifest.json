@@ -3,7 +3,7 @@
   "name": "Obsidian Clipping Anything Player",
   "version": "1.2.7",
   "minAppVersion": "1.5.0",
-  "description": "Play Bilibili videos in Obsidian with synchronized subtitles and no player popups.",
+  "description": "Play Bilibili and YouTube videos in Obsidian with synchronized subtitles.",
   "author": "Obsidian Clipping Anything",
   "isDesktopOnly": true
 }
