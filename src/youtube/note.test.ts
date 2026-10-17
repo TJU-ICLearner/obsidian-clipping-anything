@@ -37,9 +37,10 @@ describe('YouTube note model', () => {
     const description = '认识示例处理器（演示）？（甲、乙、丙模块）\n处理器。它由几个功能模块组成，每个模块都承担不同的任务。第一个模块处理输入信息，第二个模块保存中间结果。第三个模块负责把结果传给其他设备。把这些部件放在一起，可以缩短它们之间的数据传输路径。#shorts\n#示例 #科技\n…更多 2.03万位订阅者 视频详细信息';
     const note = load().build({ ...snapshot, title: '认识示例处理器？（甲、乙、丙模块）', description, cues: [] }, { folder: 'Clippings/YouTube' });
     expect(note.markdown).toContain('由视频简介整理，未经音频校对，无时间轴');
+    expect(note.markdown).toContain('## 简介摘录');
+    expect(note.markdown).not.toContain('## 字幕');
     expect(note.markdown).toContain('第一个模块处理输入信息，第二个模块保存中间结果。\n');
     expect(note.markdown).not.toContain('认识示例处理器（演示）？');
-    expect(note.markdown).not.toContain('## 简介');
     expect(note.markdown).not.toMatch(/订阅者|视频详细信息|…更多|#shorts|#示例/);
     expect(note.markdown).not.toMatch(/`\d\d:\d\d`/);
   });

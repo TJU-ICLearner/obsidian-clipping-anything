@@ -100,7 +100,7 @@
       lines.push('', '## 章节', '');
       for (const chapter of snapshot.chapters) if (Number.isFinite(chapter.start) && chapter.start >= 0 && oneLine(chapter.title)) lines.push(`\`${stamp(chapter.start)}\` ${md(chapter.title)}`);
     }
-    lines.push('', '## 字幕', '');
+    lines.push('', untimed.length ? '## 简介摘录' : '## 字幕', '');
     let count = 0;
     for (const cue of cues) {
       if (!Number.isFinite(cue.start) || cue.start < 0 || !oneLine(cue.text)) continue;
@@ -108,7 +108,7 @@
       count++;
     }
     if (!count && untimed.length) {
-      lines.push('由视频简介整理，未经音频校对，无时间轴。', '');
+      lines.push('由视频简介整理，未经音频校对，无时间轴。非完整字幕。', '');
       for (const sentence of untimed) lines.push(md(sentence));
     } else if (!count) lines.push('未从页面读取到文字记录。可在 YouTube 页面打开文字记录后重新剪藏。');
     return { markdown: lines.join('\n') + '\n', filepath };

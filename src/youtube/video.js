@@ -29,7 +29,8 @@
     return root.querySelector(selector)?.textContent?.trim() || '';
   }
 
-  function playerDescription(document, videoId) {
+  function playerData(document, videoId) {
+    let stalePlayer = false;
     for (const script of document.querySelectorAll('script')) {
       const source = script.textContent || '';
       const marker = /\bytInitialPlayerResponse\s*=\s*\{/.exec(source);
@@ -48,14 +49,24 @@
         else if (character === '{') depth++;
         else if (character === '}' && --depth === 0) {
           try {
-            const details = JSON.parse(source.slice(start, index + 1)).videoDetails;
-            if (details?.videoId === videoId && typeof details.shortDescription === 'string') return details.shortDescription.trim();
+            const response = JSON.parse(source.slice(start, index + 1));
+            const details = response.videoDetails;
+            if (details?.videoId === videoId) {
+              return {
+                title: typeof details.title === 'string' ? details.title.trim() : '',
+                channel: typeof details.author === 'string' ? details.author.trim() : '',
+                description: typeof details.shortDescription === 'string' ? details.shortDescription.trim() : '',
+                captionsAvailable: Boolean(response.captions?.playerCaptionsTracklistRenderer?.captionTracks?.length),
+              };
+            }
+            if (details?.videoId) stalePlayer = true;
           } catch { /* The page can contain a partial or non-JSON assignment. */ }
           break;
         }
       }
     }
-    return '';
+    if (stalePlayer) throw new Error('YouTube 仍保留上一个视频的资料，请刷新视频网页后重试。');
+    return null;
   }
 
   function shortsMetadata(document, videoId) {
@@ -112,21 +123,28 @@
         cues.push({ start, text });
       }
     }
+    const player = isShort ? null : playerData(document, videoId);
     const metadata = isShort ? shortsMetadata(document, videoId) : {
-      title: document.querySelector('meta[property="og:title"]')?.getAttribute('content')?.trim()
-        || textAt(document, 'ytd-watch-metadata h1, h1.ytd-watch-metadata')
-        || String(document.title || '').replace(/\s*-\s*YouTube$/, '').trim(),
-      channel: textAt(document, 'ytd-channel-name a, ytd-video-owner-renderer a')
-        || document.querySelector('link[itemprop="name"]')?.getAttribute('content')?.trim() || '',
-      description: textAt(document, '#description-inline-expander, #description ytd-text-inline-expander'),
+      title: player?.title || (watch
+        ? textAt(watch, 'ytd-watch-metadata h1, h1.ytd-watch-metadata')
+        : document.querySelector('meta[property="og:title"]')?.getAttribute('content')?.trim()
+          || textAt(document, 'ytd-watch-metadata h1, h1.ytd-watch-metadata')
+          || String(document.title || '').replace(/\s*-\s*YouTube$/, '').trim()),
+      channel: player?.channel || (watch
+        ? textAt(watch, 'ytd-channel-name a, ytd-video-owner-renderer a')
+        : textAt(document, 'ytd-channel-name a, ytd-video-owner-renderer a')
+          || document.querySelector('link[itemprop="name"]')?.getAttribute('content')?.trim() || ''),
+      description: player?.description || (watch
+        ? textAt(watch, '#description-inline-expander, #description ytd-text-inline-expander')
+        : textAt(document, '#description-inline-expander, #description ytd-text-inline-expander')),
     };
-    metadata.description = playerDescription(document, videoId) || metadata.description;
     return {
       videoId,
       title: metadata.title,
       channel: metadata.channel,
       url: isShort ? `https://www.youtube.com/shorts/${videoId}` : `https://www.youtube.com/watch?v=${videoId}`,
       description: metadata.description,
+      captionsAvailable: Boolean(player?.captionsAvailable),
       chapters: [],
       cues,
       transcriptState: !expanded || !container ? 'unopened' : cues.length ? 'possibly-incomplete' : 'open-empty',

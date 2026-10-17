@@ -71,6 +71,19 @@ describe('YouTube popup route and actions', () => {
     expect(status).toContain('不能按字幕跳转或高亮');
     expect(popup.transcriptSummary({ transcriptState: 'complete', cues: [], description: '第一句话介绍芯片的组成。第二句话解释处理器的作用。第三句话继续讲解不同部件的功能。第四句话介绍它们怎样协同工作。第五句话说明集成的好处。' })).toContain('无时间轴');
   });
+  it('asks to open available captions before treating a description excerpt as a transcript', () => {
+    const popup = loadPopup();
+    const status = popup.transcriptSummary({
+      videoId: 'x4DL9SRA3Og', url: 'https://www.youtube.com/watch?v=x4DL9SRA3Og',
+      transcriptState: 'unopened', cues: [], captionsAvailable: true,
+      description: '第一句话介绍芯片的组成。第二句话解释处理器的作用。第三句话继续讲解不同部件的功能。第四句话介绍它们怎样协同工作。第五句话说明集成的好处。',
+    });
+    expect(status).toContain('有字幕');
+    expect(status).toContain('显示文字记录');
+    expect(status).toContain('刷新');
+    expect(status).toContain('简介摘录');
+    expect(status).toContain('非完整字幕');
+  });
   it('offers a same-tab watch-page button only for Shorts without visible cues', async () => {
     const short = 'https://www.youtube.com/shorts/_i92TmBGF8k';
     const html = readFileSync(new URL('./popup.html', import.meta.url), 'utf8').replace(/<script[^>]*><\/script>/g, '');

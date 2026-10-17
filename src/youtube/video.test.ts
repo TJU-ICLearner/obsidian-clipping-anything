@@ -152,7 +152,24 @@ describe('YouTube visible snapshot', () => {
       <div id="description-inline-expander">第一句。第二句。第三句。 …更多 2.03万位订阅者 视频详细信息</div>`);
     expect(video.snapshot(document, url).description).toBe('第一句。第二句。第三句。');
     document.querySelector('script')!.textContent = `var ytInitialPlayerResponse = ${JSON.stringify({ videoDetails: { videoId: 'abcdefghijk', shortDescription: 'Previous video' } })};`;
-    expect(video.snapshot(document, url).description).not.toContain('Previous video');
+    expect(() => video.snapshot(document, url)).toThrow(/切换|刷新/);
+  });
+
+  it('uses metadata and caption availability bound to the current watch video despite stale SPA tags', () => {
+    const video = loadVideo();
+    const currentUrl = 'https://www.youtube.com/watch?v=x4DL9SRA3Og';
+    const document = page(`<meta property="og:title" content="Previous SOC title">
+      <ytd-watch-flexy video-id="x4DL9SRA3Og"><ytd-watch-metadata><h1>Still stale</h1></ytd-watch-metadata></ytd-watch-flexy>
+      <ytd-video-owner-renderer><a>Previous channel</a></ytd-video-owner-renderer>
+      <script>var ytInitialPlayerResponse = ${JSON.stringify({
+        videoDetails: { videoId: 'x4DL9SRA3Og', title: 'GPU architecture', author: 'Current channel', shortDescription: 'Current description' },
+        captions: { playerCaptionsTracklistRenderer: { captionTracks: [{ languageCode: 'zh-Hans' }] } },
+      })};</script>`);
+    const result = video.snapshot(document, currentUrl);
+    expect(result.title).toBe('GPU architecture');
+    expect(result.channel).toBe('Current channel');
+    expect(result.description).toBe('Current description');
+    expect(result.captionsAvailable).toBe(true);
   });
 
   it('content listener keeps the message channel open while collecting and checks the active ID', async () => {
