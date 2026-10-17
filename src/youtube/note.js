@@ -94,20 +94,24 @@
     ];
     const description = cleanDescription(snapshot.description);
     const cues = Array.isArray(snapshot.cues) ? snapshot.cues : [];
-    const untimed = cues.length ? [] : untimedSentences(description, title);
-    if (description && !untimed.length) lines.push('', '## 简介', '', md(description));
+    const transcript = cues.length ? [] : (Array.isArray(snapshot.untimedTranscript) ? snapshot.untimedTranscript.map(oneLine).filter(Boolean) : []);
+    const untimed = cues.length || transcript.length ? [] : untimedSentences(description, title);
+    if (description && (!untimed.length || transcript.length)) lines.push('', '## 简介', '', md(description));
     if (Array.isArray(snapshot.chapters) && snapshot.chapters.length) {
       lines.push('', '## 章节', '');
       for (const chapter of snapshot.chapters) if (Number.isFinite(chapter.start) && chapter.start >= 0 && oneLine(chapter.title)) lines.push(`\`${stamp(chapter.start)}\` ${md(chapter.title)}`);
     }
-    lines.push('', untimed.length ? '## 简介摘录' : '## 字幕', '');
+    lines.push('', transcript.length ? '## 无时间文字记录' : untimed.length ? '## 简介摘录' : '## 字幕', '');
     let count = 0;
     for (const cue of cues) {
       if (!Number.isFinite(cue.start) || cue.start < 0 || !oneLine(cue.text)) continue;
       lines.push(`\`${stamp(cue.start)}\` ${md(cue.text)}`);
       count++;
     }
-    if (!count && untimed.length) {
+    if (!count && transcript.length) {
+      lines.push('页面文字记录未提供时间信息，不能按字幕跳转或高亮。', '');
+      for (const line of transcript) lines.push(md(line));
+    } else if (!count && untimed.length) {
       lines.push('由视频简介整理，未经音频校对，无时间轴。非完整字幕。', '');
       for (const sentence of untimed) lines.push(md(sentence));
     } else if (!count) lines.push('未从页面读取到文字记录。可在 YouTube 页面打开文字记录后重新剪藏。');

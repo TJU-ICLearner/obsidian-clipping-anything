@@ -8,7 +8,7 @@
 .oca-youtube-seek { flex: 1; min-width: 0; cursor: pointer; }
 .oca-youtube-seek:disabled { cursor: wait; }
 .oca-youtube-time { flex: none; color: var(--text-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
-.oca-transcript { max-height: min(24vh, 200px); overflow: auto; padding: 8px; border-top: 1px solid var(--background-modifier-border); }
+.oca-transcript { position: relative; max-height: min(24vh, 200px); overflow: auto; padding: 8px; border-top: 1px solid var(--background-modifier-border); }
 .oca-cue { display: flex; width: 100%; gap: 12px; align-items: baseline; padding: 6px 8px; border-radius: 6px; background: transparent; color: var(--text-normal); text-align: left; cursor: pointer; }
 .oca-cue:hover { background: var(--background-modifier-hover); }
 .oca-cue.is-active { background: var(--interactive-accent); color: var(--text-on-accent); }

@@ -117,13 +117,18 @@
       timestamps: panel?.querySelectorAll('[class*="timestamp"], [class*="Timestamp"]').length || 0,
     };
     const cues = [];
+    const untimedTranscript = [];
     const seen = new Set();
     if (expanded && container) {
       for (const row of container.querySelectorAll(ROW)) {
         const stamp = textAt(row, '.segment-timestamp, .ytwTranscriptSegmentViewModelTimestamp');
         const text = textAt(row, '.segment-text, span.yt-core-attributed-string');
         const start = secondsFromStamp(stamp);
-        if (start === null || !text) continue;
+        if (!text) continue;
+        if (start === null) {
+          if (!untimedTranscript.includes(text)) untimedTranscript.push(text);
+          continue;
+        }
         const key = `${videoId}\u0000${start}\u0000${text}`;
         if (seen.has(key)) continue;
         seen.add(key);
@@ -154,8 +159,9 @@
       captionsAvailable: Boolean(player?.captionsAvailable),
       chapters: [],
       cues,
+      untimedTranscript: cues.length ? [] : untimedTranscript,
       transcriptDiagnostics,
-      transcriptState: !expanded ? 'unopened' : !container ? 'open-unrecognized' : cues.length ? 'possibly-incomplete' : 'open-empty',
+      transcriptState: !expanded ? 'unopened' : !container ? 'open-unrecognized' : cues.length ? 'possibly-incomplete' : untimedTranscript.length ? 'open-untimed' : 'open-empty',
     };
   }
 
@@ -197,9 +203,11 @@
     if (!scroller) return first;
     const originalPosition = scroller.scrollTop;
     const cues = new Map();
+    const untimedTranscript = new Set();
     const addVisible = () => {
       const partial = snapshot(document, currentUrl(), expectedVideoId);
       for (const cue of partial.cues) cues.set(`${cue.start}\u0000${cue.text}`, cue);
+      for (const line of partial.untimedTranscript) untimedTranscript.add(line);
     };
     const wait = options.waitForRender || (() => waitForRows(container));
     const now = options.now || Date.now;
@@ -231,7 +239,9 @@
     } finally {
       scroller.scrollTop = originalPosition;
     }
-    return { ...first, cues: Array.from(cues.values()).sort((a, b) => a.start - b.start), transcriptState: complete ? 'complete' : 'possibly-incomplete' };
+    const collectedCues = Array.from(cues.values()).sort((a, b) => a.start - b.start);
+    return { ...first, cues: collectedCues, untimedTranscript: collectedCues.length ? [] : Array.from(untimedTranscript),
+      transcriptState: collectedCues.length ? (complete ? 'complete' : 'possibly-incomplete') : untimedTranscript.size ? (complete ? 'complete-untimed' : 'open-untimed') : 'open-empty' };
   }
 
   globalThis.OcaYouTubeVideo = { videoIdFromUrl, secondsFromStamp, snapshot, collect };

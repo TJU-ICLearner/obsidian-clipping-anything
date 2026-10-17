@@ -13,6 +13,16 @@ function loadVideo() {
 function page(body = '') { return new JSDOM(`<!doctype html><title>Video title - YouTube</title><body>${body}</body>`).window.document; }
 
 describe('YouTube visible snapshot', () => {
+  it('keeps visible transcript text when its rows have no usable timestamps', () => {
+    const video = loadVideo();
+    const document = page(`<ytd-engagement-panel-section-list-renderer target-id="engagement-panel-searchable-transcript" visibility="ENGAGEMENT_PANEL_VISIBILITY_EXPANDED"><div id="segments-container">
+      <ytd-transcript-segment-renderer><span class="segment-text">First spoken sentence.</span></ytd-transcript-segment-renderer>
+      <ytd-transcript-segment-renderer><span class="segment-text">Second spoken sentence.</span></ytd-transcript-segment-renderer>
+    </div></ytd-engagement-panel-section-list-renderer>`);
+    const result = video.snapshot(document, url);
+    expect(result.cues).toHaveLength(0);
+    expect(JSON.stringify(result.untimedTranscript)).toBe(JSON.stringify(['First spoken sentence.', 'Second spoken sentence.']));
+  });
   it('accepts only standard watch and Shorts URLs with a valid eleven-character ID', () => {
     const video = loadVideo();
     expect(video.videoIdFromUrl(url)).toBe('M7lc1UVf-VE');

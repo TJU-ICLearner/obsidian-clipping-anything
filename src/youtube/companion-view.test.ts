@@ -31,6 +31,29 @@ function setup(markdown: string, embed = EMBED_URL) {
 }
 const note = `---\nclip_platform: youtube\nyoutube_id: "${ID}"\n---\n\n## 字幕\n\n\`01:05\` First\n\`01:08\` Second`;
 describe('YouTube reading view integration', () => {
+  it('follows the active cue inside the transcript, pauses after manual scrolling, then resumes', async () => {
+    const s = setup(note);
+    await s.plugin.onload();
+    s.getPostprocessor()(s.document.getElementById('block'), { sourcePath: 'clip.md' });
+    await vi.waitFor(() => expect(s.instances).toHaveLength(1));
+    const transcript = s.document.querySelector('.oca-transcript') as HTMLElement;
+    const rows = Array.from(transcript.querySelectorAll('.oca-cue')) as HTMLElement[];
+    Object.defineProperty(transcript, 'clientHeight', { value: 80 });
+    Object.defineProperty(rows[1], 'offsetTop', { value: 120 });
+    Object.defineProperty(rows[1], 'offsetHeight', { value: 30 });
+    s.instances[0].callbacks.onTime(68);
+    expect(rows[1].classList.contains('is-active')).toBe(true);
+    expect(transcript.scrollTop).toBeGreaterThan(0);
+    transcript.scrollTop = 0;
+    transcript.dispatchEvent(new s.dom.window.WheelEvent('wheel', { bubbles: true }));
+    s.instances[0].callbacks.onTime(65);
+    s.instances[0].callbacks.onTime(68);
+    expect(transcript.scrollTop).toBe(0);
+    await new Promise(resolve => setTimeout(resolve, 3100));
+    s.instances[0].callbacks.onTime(68.5);
+    expect(transcript.scrollTop).toBeGreaterThan(0);
+    expect(s.document.querySelector('.markdown-preview-view')!.scrollTop).toBe(0);
+  });
   it('dispatches a matching note to one local iframe and one controller; timestamp seeks and progress highlights', async () => {
     const s = setup(note);
     await s.plugin.onload();

@@ -9,6 +9,14 @@ function load() {
 }
 const snapshot = { videoId: 'M7lc1UVf-VE', title: 'A /../ : [hostile](https://evil.test)\n# title', channel: 'Channel', url: 'https://www.youtube.com/watch?v=M7lc1UVf-VE', description: 'description\n## Injected', chapters: [], cues: [{ start: 65, text: 'Hello [link](https://evil.test)' }] };
 describe('YouTube note model', () => {
+  it('saves actual untimed transcript separately from the description without seek markers', () => {
+    const note = load().build({ ...snapshot, cues: [], description: 'Join our newsletter.', untimedTranscript: ['First spoken sentence.', 'Second spoken sentence.'] }, { folder: 'Clippings/YouTube' });
+    expect(note.markdown).toContain('## 无时间文字记录');
+    expect(note.markdown).toContain('First spoken sentence.\nSecond spoken sentence.');
+    expect(note.markdown).toContain('## 简介');
+    expect(note.markdown).not.toMatch(/`\d\d:\d\d`/);
+    expect(note.markdown).not.toContain('由视频简介整理');
+  });
   it('emits safe frontmatter, note-local embed, and code timestamps without external links', () => {
     const note = load().build(snapshot, { folder: 'Clippings/YouTube', now: new Date('2026-10-17T00:00:00Z'), randomBytes: () => new Uint8Array([1, 2, 3, 4]) });
     expect(note.markdown).toContain('clip_platform: youtube');

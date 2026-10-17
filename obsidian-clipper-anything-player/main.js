@@ -373,16 +373,30 @@ module.exports = class ObsidianClipperAnythingPlayer extends Plugin {
         buttons.push(button);
       }
       let activeCue = -1;
+      let resumeFollowingAt = 0;
+      const pauseFollowing = () => { resumeFollowingAt = Date.now() + 3000; };
+      for (const type of ["wheel", "touchstart", "pointerdown", "keydown"]) transcript.addEventListener(type, pauseFollowing);
       showProgress = (seconds) => {
         let index = -1;
         for (let i = 0; i < cues.length; i++) {
           if (cues[i].seconds <= seconds) index = i;
           else break;
         }
-        if (index === activeCue) return;
-        if (activeCue >= 0) buttons[activeCue].removeClass("is-active");
-        activeCue = index;
-        if (index >= 0) buttons[index].addClass("is-active");
+        if (index !== activeCue) {
+          if (activeCue >= 0) buttons[activeCue].removeClass("is-active");
+          activeCue = index;
+          if (index >= 0) buttons[index].addClass("is-active");
+        }
+        if (index >= 0 && Date.now() >= resumeFollowingAt) {
+          const row = buttons[index];
+          const top = row.offsetTop;
+          const bottom = top + row.offsetHeight;
+          const viewportTop = transcript.scrollTop;
+          const viewportBottom = viewportTop + transcript.clientHeight;
+          if (top < viewportTop || bottom > viewportBottom) {
+            transcript.scrollTop = Math.max(0, top - Math.max(0, (transcript.clientHeight - row.offsetHeight) / 2));
+          }
+        }
       };
       const seek = async (seconds) => {
         status.textContent = "正在跳转笔记视频…";

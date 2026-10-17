@@ -30,6 +30,7 @@
     if (snapshot.cues.length && snapshot.transcriptState === 'complete') return `已遍历文字记录，读取 ${snapshot.cues.length} 条字幕。`;
     if (snapshot.cues.length && snapshot.transcriptState === 'web-fallback') return `从网页裁剪提取器读取 ${snapshot.cues.length} 条带时间字幕。`;
     if (snapshot.cues.length && snapshot.transcriptState === 'possibly-incomplete') return `已读取 ${snapshot.cues.length} 条页面文字记录；页面可能只渲染了一部分，结果可能不完整。`;
+    if (snapshot.untimedTranscript?.length) return `已读取 ${snapshot.untimedTranscript.length} 条无时间文字记录；保存后仅供阅读，不能按字幕跳转或高亮。`;
     const hasExcerpt = globalThis.OcaYouTubeNote?.untimedSentences(snapshot.description, snapshot.title).length;
     if (snapshot.transcriptState === 'open-unrecognized' || snapshot.transcriptState === 'open-empty') {
       const d = snapshot.transcriptDiagnostics || {};
@@ -61,8 +62,8 @@
     }
   }
   function canSave(snapshot) { return /^[A-Za-z0-9_-]{11}$/.test(snapshot?.videoId || ''); }
-  function parseWebTranscript(html, videoId) {
-    if (!canSave({ videoId }) || typeof html !== 'string') return [];
+  function webTranscriptDocument(html, videoId) {
+    if (!canSave({ videoId }) || typeof html !== 'string') return null;
     const parsed = new DOMParser().parseFromString(html, 'text/html');
     const currentVideo = Array.from(parsed.querySelectorAll('iframe[src]')).some(frame => {
       try {
@@ -70,7 +71,11 @@
         return src.protocol === 'https:' && src.hostname === 'www.youtube.com' && src.pathname === `/embed/${videoId}`;
       } catch { return false; }
     });
-    if (!currentVideo) return [];
+    return currentVideo ? parsed : null;
+  }
+  function parseWebTranscript(html, videoId) {
+    const parsed = webTranscriptDocument(html, videoId);
+    if (!parsed) return [];
     const cues = new Map();
     for (const row of parsed.querySelectorAll('.youtube.transcript .transcript-segment')) {
       const stamp = row.querySelector('.timestamp[data-timestamp]');
@@ -83,13 +88,25 @@
     }
     return Array.from(cues.values()).sort((a, b) => a.start - b.start);
   }
+  function parseWebUntimedTranscript(html, videoId) {
+    const parsed = webTranscriptDocument(html, videoId);
+    if (!parsed) return [];
+    const lines = new Set();
+    for (const row of parsed.querySelectorAll('.youtube.transcript .transcript-segment')) {
+      if (row.querySelector('.timestamp[data-timestamp]')) continue;
+      const text = (row.textContent || '').replace(/^[\s·•—:|-]+/, '').replace(/\s+/g, ' ').trim();
+      if (text) lines.add(text);
+    }
+    return Array.from(lines);
+  }
   async function webTranscript(tabId, videoId) {
     const request = { action: 'sendMessageToTab', tabId, message: { action: 'getPageContent' } };
     const extract = async () => {
       const response = await chrome.runtime.sendMessage(request);
       if (!response?.content) throw new Error(response?.error || '网页裁剪未返回内容');
       const cues = parseWebTranscript(response.content, videoId);
-      return { cues, diagnostic: cues.length ? '' : '已返回网页内容，但没有识别到当前视频的带时间字幕' };
+      const untimedTranscript = cues.length ? [] : parseWebUntimedTranscript(response.content, videoId);
+      return { cues, untimedTranscript, diagnostic: cues.length || untimedTranscript.length ? '' : '已返回网页内容，但没有识别到当前视频的文字记录' };
     };
     try {
       return await extract();
@@ -98,10 +115,10 @@
         const injected = await chrome.runtime.sendMessage({ action: 'forceInjectContentScript', tabId });
         if (injected?.success === false) throw new Error(injected.error || '内容脚本重新连接失败');
         return await extract();
-      } catch (error) { return { cues: [], diagnostic: `连接失败：${String(error?.message || error).slice(0, 140)}` }; }
+      } catch (error) { return { cues: [], untimedTranscript: [], diagnostic: `连接失败：${String(error?.message || error).slice(0, 140)}` }; }
     }
   }
-  globalThis.OcaYouTubePopup = { validateSnapshotTab, transcriptSummary, readError, canSave, parseWebTranscript };
+  globalThis.OcaYouTubePopup = { validateSnapshotTab, transcriptSummary, readError, canSave, parseWebTranscript, parseWebUntimedTranscript };
 
   if (!document.getElementById('youtube-popup')) return;
   const el = Object.fromEntries(['title','channel','source','transcript-status','open-watch','transcript-preview','vault','folder','filepath','markdown-preview','refresh','copy','save','message','settings'].map(id => [id, document.getElementById(id)]));
@@ -118,7 +135,8 @@
     el['open-watch'].hidden = !shortsWatchUrl(captured);
     el['transcript-preview'].textContent = captured.cues.length
       ? captured.cues.slice(0, 30).map(cue => `${globalThis.OcaYouTubeNote.stamp(cue.start)}  ${cue.text}`).join('\n')
-      : globalThis.OcaYouTubeNote.untimedSentences(captured.description, captured.title).slice(0, 30).join('\n');
+      : captured.untimedTranscript?.length ? captured.untimedTranscript.slice(0, 30).join('\n')
+        : globalThis.OcaYouTubeNote.untimedSentences(captured.description, captured.title).slice(0, 30).join('\n');
     try {
       note = globalThis.OcaYouTubeNote.build(captured, { folder: el.folder.value.trim() });
       el.filepath.textContent = note.filepath;
@@ -154,7 +172,9 @@
         const web = await webTranscript(tab.id, id);
         snapshot = web.cues.length
           ? { ...snapshot, cues: web.cues, transcriptState: 'web-fallback' }
-          : { ...snapshot, webTranscriptDiagnostic: web.diagnostic };
+          : web.untimedTranscript.length
+            ? { ...snapshot, untimedTranscript: web.untimedTranscript, transcriptState: 'web-untimed' }
+            : { ...snapshot, webTranscriptDiagnostic: web.diagnostic };
       }
       if (!await validateSnapshotTab(chrome.tabs, { tabId: tab.id, videoId: id })) throw new Error('视频页面已切换，请重新刷新预览。');
       captured = snapshot; capturedTabId = tab.id;

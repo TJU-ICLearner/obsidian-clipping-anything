@@ -17,6 +17,21 @@ function routed(url: string) {
   return route;
 }
 describe('YouTube popup route and actions', () => {
+  it('shows a plain transcript status when the page provided words without timestamps', () => {
+    const popup = loadPopup();
+    const status = popup.transcriptSummary({ transcriptState: 'complete-untimed', cues: [], untimedTranscript: ['First line', 'Second line'] });
+    expect(status).toContain('2 条');
+    expect(status).toContain('无时间');
+    expect(status).not.toContain('简介');
+  });
+  it('reads untimed web transcript rows only when the extracted page embeds the same video', () => {
+    const popup = loadPopup();
+    const html = '<iframe src="https://www.youtube.com/embed/fwdzsY9KWKk"></iframe><div class="youtube transcript">' +
+      '<p class="transcript-segment">First spoken line</p><p class="transcript-segment">Second spoken line</p></div>';
+    expect(JSON.stringify(popup.parseWebUntimedTranscript(html, 'fwdzsY9KWKk'))).toBe(JSON.stringify(['First spoken line', 'Second spoken line']));
+    expect(popup.parseWebUntimedTranscript(html, 'x4DL9SRA3Og')).toHaveLength(0);
+    expect(popup.parseWebUntimedTranscript('<iframe src="https://www.youtube.com/embed/fwdzsY9KWKk"></iframe><p>Channel promotion</p>', 'fwdzsY9KWKk')).toHaveLength(0);
+  });
   it('routes standard YouTube watch and Shorts pages to the dedicated popup', () => {
     expect(routed(watch)).toBe('youtube/popup.html');
     expect(routed('https://www.youtube.com/shorts/_i92TmBGF8k')).toBe('youtube/popup.html');
