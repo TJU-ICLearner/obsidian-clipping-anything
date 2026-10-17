@@ -95,7 +95,7 @@ describe('YouTube reading view integration', () => {
     await s.plugin.onload();
     s.getPostprocessor()(s.document.getElementById('block'), { sourcePath: 'clip.md' });
     await vi.waitFor(() => expect(s.instances).toHaveLength(1));
-    const slider = s.document.querySelector<HTMLInputElement>('.oca-youtube-seek')!;
+    const slider = s.document.querySelector('.oca-youtube-seek') as HTMLInputElement;
     expect(slider).not.toBeNull();
     expect(slider.getAttribute('aria-label')).toContain('进度');
     expect(slider.disabled).toBe(true);
