@@ -120,6 +120,34 @@ describe('YouTube popup route and actions', () => {
     expect(document.getElementById('title')?.textContent).toBe('读取失败');
     expect(document.getElementById('save')?.hasAttribute('disabled')).toBe(true);
   });
+  it('reinjects the YouTube collector once when a reloaded extension has no receiver in the tab', async () => {
+    const html = readFileSync(new URL('./popup.html', import.meta.url), 'utf8').replace(/<script[^>]*><\/script>/g, '');
+    const dom = new JSDOM(html, { url: 'chrome-extension://test/youtube/popup.html' });
+    const document = dom.window.document;
+    const snapshot = { videoId: 'M7lc1UVf-VE', title: 'Current video', channel: 'Current channel', url: watch, description: '', chapters: [], cues: [], transcriptState: 'unopened' };
+    const sendMessage = vi.fn().mockRejectedValueOnce(new Error('Could not establish connection. Receiving end does not exist.'))
+      .mockResolvedValueOnce({ ok: true, payload: snapshot });
+    const executeScript = vi.fn(async () => []);
+    const chrome = {
+      tabs: { query: vi.fn(async () => [{ id: 7, url: watch }]), sendMessage },
+      scripting: { executeScript },
+      storage: { sync: { get: vi.fn(async () => ({ vaults: [] })), set: vi.fn(async () => {}) }, local: { get: vi.fn(async () => ({})), set: vi.fn(async () => {}) } },
+      runtime: { openOptionsPage: vi.fn() },
+    };
+    const context: any = { URL, document, chrome, navigator: dom.window.navigator, crypto: dom.window.crypto, TextEncoder };
+    context.globalThis = context;
+    vm.runInNewContext(readFileSync(new URL('./note.js', import.meta.url), 'utf8'), context);
+    vm.runInNewContext(readFileSync(new URL('./popup.js', import.meta.url), 'utf8'), context);
+    await vi.waitFor(() => expect(document.getElementById('message')?.textContent).toBe('预览已更新。'));
+    expect(executeScript).toHaveBeenCalledWith({ target: { tabId: 7 }, files: ['youtube/video.js', 'youtube/content.js'] });
+    expect(sendMessage).toHaveBeenCalledTimes(2);
+    expect(document.getElementById('title')?.textContent).toBe('Current video');
+    sendMessage.mockRejectedValueOnce(new Error('Could not establish connection. Receiving end does not exist.'));
+    executeScript.mockRejectedValueOnce(new Error('Site access blocked'));
+    document.getElementById('refresh')?.click();
+    await vi.waitFor(() => expect(document.getElementById('message')?.textContent).toContain('刷新 YouTube 网页'));
+    expect(sendMessage).toHaveBeenCalledTimes(3);
+  });
   it('offers a same-tab watch-page button only for Shorts without visible cues', async () => {
     const short = 'https://www.youtube.com/shorts/_i92TmBGF8k';
     const html = readFileSync(new URL('./popup.html', import.meta.url), 'utf8').replace(/<script[^>]*><\/script>/g, '');

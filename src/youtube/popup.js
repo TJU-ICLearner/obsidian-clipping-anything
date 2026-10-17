@@ -42,8 +42,22 @@
   }
   function readError(error) {
     const detail = String(error?.message || error);
-    if (/message channel closed|message port closed|extension context invalidated/i.test(detail)) return '读取连接中断。请刷新 YouTube 网页，重新打开文字记录，再点扩展中的“刷新”。';
+    if (/message channel closed|message port closed|extension context invalidated|receiving end does not exist/i.test(detail)) return '读取连接中断。请刷新 YouTube 网页，重新打开文字记录，再点扩展中的“刷新”。';
     return detail;
+  }
+  async function requestSnapshot(tabId, videoId) {
+    const request = { type: 'oca-youtube-snapshot', expectedVideoId: videoId };
+    try {
+      return await chrome.tabs.sendMessage(tabId, request);
+    } catch (error) {
+      if (!/receiving end does not exist/i.test(String(error?.message || error))) throw error;
+      try {
+        await chrome.scripting.executeScript({ target: { tabId }, files: ['youtube/video.js', 'youtube/content.js'] });
+        return await chrome.tabs.sendMessage(tabId, request);
+      } catch (retryError) {
+        throw new Error(`自动连接失败：${String(retryError?.message || retryError)}。请刷新 YouTube 网页；若仍失败，请检查扩展的网站访问权限。`);
+      }
+    }
   }
   function canSave(snapshot) { return /^[A-Za-z0-9_-]{11}$/.test(snapshot?.videoId || ''); }
   globalThis.OcaYouTubePopup = { validateSnapshotTab, transcriptSummary, readError, canSave };
@@ -91,7 +105,7 @@
       const tab = (await chrome.tabs.query({ active: true, currentWindow: true }))[0];
       const id = videoIdFromUrl(tab?.url);
       if (!id) throw new Error('请打开标准 YouTube 视频页面后重试。');
-      const response = await chrome.tabs.sendMessage(tab.id, { type: 'oca-youtube-snapshot', expectedVideoId: id });
+      const response = await requestSnapshot(tab.id, id);
       if (!response?.ok) throw new Error(response?.error || '页面读取失败，请刷新 YouTube 页面。');
       if (!await validateSnapshotTab(chrome.tabs, { tabId: tab.id, videoId: id })) throw new Error('视频页面已切换，请重新刷新预览。');
       captured = response.payload; capturedTabId = tab.id;
