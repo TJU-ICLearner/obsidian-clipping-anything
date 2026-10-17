@@ -89,4 +89,26 @@ describe('YouTube reading view integration', () => {
     expect(s.instances[0].seek).not.toHaveBeenCalled();
     expect(time.classList.contains('oca-note-timestamp')).toBe(false);
   });
+  it('scrubs an untimed note video with a separate accessible range control', async () => {
+    const markdown = `---\nclip_platform: youtube\nyoutube_id: "${ID}"\n---\n\n## 字幕\n\n由视频简介整理，未经音频校对，无时间轴。`;
+    const s = setup(markdown);
+    await s.plugin.onload();
+    s.getPostprocessor()(s.document.getElementById('block'), { sourcePath: 'clip.md' });
+    await vi.waitFor(() => expect(s.instances).toHaveLength(1));
+    const slider = s.document.querySelector<HTMLInputElement>('.oca-youtube-seek')!;
+    expect(slider).not.toBeNull();
+    expect(slider.getAttribute('aria-label')).toContain('进度');
+    expect(slider.disabled).toBe(true);
+    s.instances[0].callbacks.onProgress({ seconds: 10, duration: 52 });
+    expect(slider.disabled).toBe(false);
+    expect(slider.max).toBe('52');
+    expect(slider.value).toBe('10');
+    slider.value = '30';
+    slider.dispatchEvent(new s.dom.window.Event('input', { bubbles: true }));
+    s.instances[0].callbacks.onProgress({ seconds: 11, duration: 52 });
+    expect(slider.value).toBe('30');
+    slider.dispatchEvent(new s.dom.window.Event('change', { bubbles: true }));
+    await vi.waitFor(() => expect(s.instances[0].seek).toHaveBeenCalledWith(30));
+    expect(s.document.querySelector('.oca-youtube-time')?.textContent).toContain('00:30 / 00:52');
+  });
 });

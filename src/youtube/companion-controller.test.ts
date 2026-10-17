@@ -33,6 +33,28 @@ describe('YouTube note-local IFrame controller', () => {
     onTime.mockClear(); await vi.advanceTimersByTimeAsync(1500);
     expect(onTime).not.toHaveBeenCalled();
   });
+  it('reports duration with progress so the note can enable a scrubber after metadata loads', async () => {
+    vi.useFakeTimers();
+    const { createYouTubeController } = require(playerModule);
+    const iframe = frame();
+    const onProgress = vi.fn();
+    let events: any; let duration = 0; let seconds = 4;
+    const player = { getCurrentTime: () => seconds, getDuration: () => duration, getPlayerState: () => 2,
+      seekTo: vi.fn((value: number) => { seconds = value; }), destroy: vi.fn() };
+    const controller = createYouTubeController(iframe, 'M7lc1UVf-VE', { onProgress }, {
+      loadApi: async () => ({ Player: function (_iframe: any, options: any) { events = options.events; return player; } }),
+      setInterval, clearInterval, setTimeout, clearTimeout,
+    });
+    await vi.waitFor(() => expect(events).toBeDefined()); events.onReady({ target: player });
+    await vi.advanceTimersByTimeAsync(800);
+    expect(onProgress).toHaveBeenLastCalledWith({ seconds: 4, duration: 0 });
+    duration = 52;
+    await vi.advanceTimersByTimeAsync(800);
+    expect(onProgress).toHaveBeenLastCalledWith({ seconds: 4, duration: 52 });
+    await controller.seek(30);
+    expect(player.seekTo).toHaveBeenCalledWith(30, true);
+    controller.destroy();
+  });
   it('cues without autoplay before first play', async () => {
     const { createYouTubeController } = require(playerModule);
     const iframe = frame(); let events: any;

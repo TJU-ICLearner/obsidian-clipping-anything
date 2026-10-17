@@ -105,6 +105,15 @@ function secondsFromStamp(stamp) {
   return parts.reduce((seconds, part) => seconds * 60 + part, 0);
 }
 
+function videoClock(seconds) {
+  const value = Math.max(0, Math.floor(Number(seconds) || 0));
+  const hours = Math.floor(value / 3600);
+  const minutes = Math.floor(value / 60) % 60;
+  const remainder = value % 60;
+  return hours ? `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`
+    : `${String(minutes).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`;
+}
+
 function parseTranscript(markdown) {
   const lines = markdown.split(/\r?\n/);
   let inSubtitle = false;
@@ -330,6 +339,29 @@ module.exports = class ObsidianClipperAnythingPlayer extends Plugin {
     iframe.setAttribute("allow", "autoplay; encrypted-media; fullscreen; picture-in-picture");
     iframe.setAttribute("allowfullscreen", "true");
     iframe.src = source;
+    const transport = dock.createDiv({ cls: "oca-youtube-transport" });
+    const slider = transport.createEl("input", { cls: "oca-youtube-seek" });
+    slider.type = "range";
+    slider.min = "0";
+    slider.max = "0";
+    slider.step = "1";
+    slider.value = "0";
+    slider.disabled = true;
+    slider.setAttribute("aria-label", "视频播放进度");
+    const clock = transport.createSpan({ text: "00:00 / --:--", cls: "oca-youtube-time" });
+    let duration = 0;
+    let scrubbing = false;
+    slider.addEventListener("input", () => {
+      scrubbing = true;
+      clock.textContent = `${videoClock(slider.value)} / ${videoClock(duration)}`;
+    });
+    slider.addEventListener("change", () => {
+      if (slider.disabled || !session.controller) { scrubbing = false; return; }
+      const target = Number(slider.value);
+      void session.controller.seek(target).catch(error => {
+        if (this.playerSessions.get(preview) === session) status.textContent = error.message;
+      }).finally(() => { scrubbing = false; });
+    });
     let showProgress = () => {};
     if (cues.length) {
       const transcript = dock.createDiv({ cls: "oca-transcript" });
@@ -415,6 +447,18 @@ module.exports = class ObsidianClipperAnythingPlayer extends Plugin {
         onReady: () => { if (this.playerSessions.get(preview) === session) status.textContent = cues.length
           ? "点击字幕时间可跳转，播放进度会高亮字幕。" : "视频可在笔记内播放。文字无时间轴，不支持按字幕跳转或高亮。"; },
         onTime: (seconds) => { if (cues.length && this.playerSessions.get(preview) === session) showProgress(seconds); },
+        onProgress: (progress) => {
+          if (this.playerSessions.get(preview) !== session) return;
+          if (Number.isFinite(progress.duration) && progress.duration > 0) {
+            duration = progress.duration;
+            slider.max = String(Math.ceil(duration));
+            slider.disabled = false;
+          }
+          if (!scrubbing) {
+            slider.value = String(Math.min(progress.seconds, duration || progress.seconds));
+            clock.textContent = `${videoClock(progress.seconds)} / ${duration ? videoClock(duration) : "--:--"}`;
+          }
+        },
         onError: (error) => { if (this.playerSessions.get(preview) === session) status.textContent = error.message; },
       });
     } catch (error) { status.textContent = error.message; }

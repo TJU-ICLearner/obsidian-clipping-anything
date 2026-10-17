@@ -78,7 +78,14 @@ function createYouTubeController(iframe, videoId, callbacks = {}, dependencies =
         callbacks.onReady?.();
         timer = setPoll(() => {
           if (destroyed) return;
-          try { const seconds = Number(player.getCurrentTime()); if (Number.isFinite(seconds) && seconds >= 0) callbacks.onTime?.(seconds); }
+          try {
+            const seconds = Number(player.getCurrentTime());
+            if (!Number.isFinite(seconds) || seconds < 0) return;
+            callbacks.onTime?.(seconds);
+            const reported = Number(player.getDuration?.());
+            const duration = Number.isFinite(reported) && reported > 0 ? reported : 0;
+            callbacks.onProgress?.({ seconds, duration });
+          }
           catch { /* Navigation may briefly interrupt an otherwise healthy player. */ }
         }, 750);
       },
