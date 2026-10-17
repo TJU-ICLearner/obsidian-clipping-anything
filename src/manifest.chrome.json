@@ -2,8 +2,8 @@
 	"manifest_version": 3,
 	"default_locale": "en",
 	"name": "Obsidian Clipping Anything",
-	"version": "1.0.6",
-	"description": "Save web pages and Bilibili subtitles to Obsidian.",
+	"version": "1.1.9",
+	"description": "Save web pages, Bilibili and YouTube videos to Obsidian.",
 	"permissions": [
 		"activeTab",
 		"clipboardWrite",
@@ -40,21 +40,56 @@
 	},
 	"content_scripts": [
 		{
-			"matches": ["http://*/*", "https://*/*"],
-			"js": ["content-loader.js"]
+			"matches": [
+				"http://*/*",
+				"https://*/*"
+			],
+			"js": [
+				"content-loader.js"
+			]
 		},
 		{
-			"matches": ["https://www.bilibili.com/video/*", "https://www.bilibili.com/list/watchlater*"],
-			"js": ["bilibili/obsidian-uri.js", "bilibili/content.js"],
-			"css": ["bilibili/content.css"],
+			"matches": [
+				"https://www.bilibili.com/video/*",
+				"https://www.bilibili.com/list/watchlater*"
+			],
+			"js": [
+				"bilibili/obsidian-uri.js",
+				"bilibili/content.js"
+			],
+			"css": [
+				"bilibili/content.css"
+			],
+			"run_at": "document_idle"
+		},
+		{
+			"matches": [
+				"https://www.youtube.com/*"
+			],
+			"js": [
+				"youtube/video.js",
+				"youtube/content.js"
+			],
 			"run_at": "document_idle"
 		}
 	],
 	"web_accessible_resources": [
 		{
-			"resources": ["reader.css", "reader-script.js", "browser-polyfill.min.js", "style.css", "side-panel.html", "flatten-shadow-dom.js", "highlighter.css"],
-			"extension_ids": ["*"],
-			"matches": [ "*://*/*" ]
+			"resources": [
+				"reader.css",
+				"reader-script.js",
+				"browser-polyfill.min.js",
+				"style.css",
+				"side-panel.html",
+				"flatten-shadow-dom.js",
+				"highlighter.css"
+			],
+			"extension_ids": [
+				"*"
+			],
+			"matches": [
+				"*://*/*"
+			]
 		}
 	],
 	"content_security_policy": {

@@ -4,7 +4,11 @@
 .oca-player-title { flex: 1; font-weight: 700; }
 .oca-player-header button { padding: 4px 8px; font-size: 12px; }
 .oca-iframe { display: block; width: 100%; aspect-ratio: 16 / 9; border: 0; background: #0a0a0a; }
-.oca-transcript { max-height: min(24vh, 200px); overflow: auto; padding: 8px; border-top: 1px solid var(--background-modifier-border); }
+.oca-youtube-transport { display: flex; align-items: center; gap: 10px; padding: 8px 12px; }
+.oca-youtube-seek { flex: 1; min-width: 0; cursor: pointer; }
+.oca-youtube-seek:disabled { cursor: wait; }
+.oca-youtube-time { flex: none; color: var(--text-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.oca-transcript { position: relative; max-height: min(24vh, 200px); overflow: auto; padding: 8px; border-top: 1px solid var(--background-modifier-border); }
 .oca-cue { display: flex; width: 100%; gap: 12px; align-items: baseline; padding: 6px 8px; border-radius: 6px; background: transparent; color: var(--text-normal); text-align: left; cursor: pointer; }
 .oca-cue:hover { background: var(--background-modifier-hover); }
 .oca-cue.is-active { background: var(--interactive-accent); color: var(--text-on-accent); }
@@ -13,3 +17,5 @@
 .oca-player-hint { padding: 8px 12px; color: var(--text-muted); font-size: 12px; }
 .oca-note-timestamp { cursor: pointer; color: var(--text-accent); }
 .oca-note-timestamp:hover, .oca-note-timestamp:focus-visible { text-decoration: underline; outline: 2px solid var(--interactive-accent); outline-offset: 2px; }
+
+.oca-youtube-dock .oca-player-hint[role="status"] { min-height: 30px; }

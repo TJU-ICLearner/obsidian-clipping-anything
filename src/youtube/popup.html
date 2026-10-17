@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Clipping Anything · YouTube</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+<main id="youtube-popup" class="popup">
+  <header class="header">
+    <div class="brand"><span class="mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span><strong>Clipping Anything</strong><small>保存你想要的一切</small></span><button id="settings" type="button">设置</button></div>
+    <nav class="modes" aria-label="剪藏模式"><a href="../popup.html?from=youtube">网页剪藏</a><span class="active" aria-current="page">YouTube 视频</span></nav>
+  </header>
+  <div class="body">
+    <section class="card hero"><span class="eyebrow">YOUTUBE · VIDEO</span><h1 id="title">正在读取视频…</h1><p id="channel"></p><p id="source" class="source"></p></section>
+    <section class="card transcript"><div class="card-head"><h2>文字记录</h2><button id="refresh" type="button">刷新</button></div><p id="transcript-status" role="status">正在读取…</p><button id="open-watch" type="button" hidden>到普通播放页查看文字记录</button><pre id="transcript-preview"></pre></section>
+    <section class="card destination"><h2>保存位置</h2><label for="vault">Obsidian 仓库</label><select id="vault"><option value="">当前打开的仓库</option></select><label for="folder">目标文件夹</label><input id="folder" value="Clippings/YouTube" autocomplete="off"><p id="filepath" class="path"></p></section>
+    <section class="card markdown"><h2>Markdown 预览</h2><textarea id="markdown-preview" readonly></textarea></section>
+  </div>
+  <footer><p class="hint">保存会替换系统剪贴板内容。请在 Obsidian 中核对上方路径。</p><div class="actions"><button id="copy" type="button">复制 Markdown</button><button id="save" type="button" class="primary">保存到 Obsidian</button></div><p id="message" role="status" aria-live="polite"></p></footer>
+</main>
+<script src="video.js"></script><script src="note.js"></script><script src="obsidian-uri.js"></script><script src="popup.js"></script>
+</body></html>

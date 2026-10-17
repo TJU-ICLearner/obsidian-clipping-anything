@@ -105,6 +105,15 @@ function secondsFromStamp(stamp) {
   return parts.reduce((seconds, part) => seconds * 60 + part, 0);
 }
 
+function videoClock(seconds) {
+  const value = Math.max(0, Math.floor(Number(seconds) || 0));
+  const hours = Math.floor(value / 3600);
+  const minutes = Math.floor(value / 60) % 60;
+  const remainder = value % 60;
+  return hours ? `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`
+    : `${String(minutes).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`;
+}
+
 function parseTranscript(markdown) {
   const lines = markdown.split(/\r?\n/);
   let inSubtitle = false;
@@ -130,6 +139,31 @@ function bilibiliEmbedUrl(raw, seconds) {
     url.searchParams.set("t", String(Math.max(0, Math.floor(seconds))));
     return url.toString();
   } catch { return null; }
+}
+
+function youtubeEmbedId(raw) {
+  try {
+    const url = new URL(raw);
+    const match = url.pathname.match(/^\/embed\/([A-Za-z0-9_-]{11})$/);
+    return url.protocol === "https:" && url.hostname === "www.youtube.com" ? match?.[1] || null : null;
+  } catch { return null; }
+}
+
+function youtubeIdFromNote(markdown) {
+  const frontmatter = String(markdown).match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/)?.[1];
+  if (!frontmatter || !/^clip_platform:\s*youtube\s*$/m.test(frontmatter)) return null;
+  const id = frontmatter.match(/^youtube_id:\s*["']?([A-Za-z0-9_-]{11})["']?\s*$/m)?.[1];
+  return id || null;
+}
+
+function youtubeLinkMatches(raw, id, seconds) {
+  try {
+    const url = new URL(raw);
+    const linkedId = url.hostname === "www.youtube.com" && url.pathname === "/watch"
+      ? url.searchParams.get("v") : youtubeEmbedId(raw);
+    const time = Number(url.searchParams.get("t") || url.searchParams.get("start"));
+    return url.protocol === "https:" && linkedId === id && Number.isFinite(time) && time === seconds;
+  } catch { return false; }
 }
 
 function prepareTimestampControls(preview, dock, source) {
@@ -196,6 +230,12 @@ module.exports = class ObsidianClipperAnythingPlayer extends Plugin {
     this.registerEvent(this.app.workspace.on("file-open", () => this.prunePlayers()));
     this.registerEvent(this.app.workspace.on("layout-change", () => this.prunePlayers()));
     this.registerMarkdownPostProcessor((el, ctx) => {
+      const youtubeFrame = [...el.querySelectorAll("iframe")].find((node) => youtubeEmbedId(node.src));
+      if (youtubeFrame && !youtubeFrame.closest(".oca-player-dock")) {
+        const file = this.app.vault.getAbstractFileByPath(ctx.sourcePath);
+        if (file instanceof TFile) void this.dispatchYouTubeFrame(youtubeFrame, file);
+        return;
+      }
       const iframe = [...el.querySelectorAll("iframe")].find((node) => bilibiliEmbedUrl(node.src, 0));
       if (!iframe) return;
       const source = iframe.getAttribute("src");
@@ -212,6 +252,7 @@ module.exports = class ObsidianClipperAnythingPlayer extends Plugin {
     const session = this.playerSessions?.get(preview);
     if (!session) return;
     clearInterval(session.progressTimer);
+    session.controller?.destroy();
     session.observer?.disconnect();
     preview.removeEventListener("click", session.click, true);
     preview.removeEventListener("keydown", session.keydown, true);
@@ -253,6 +294,188 @@ module.exports = class ObsidianClipperAnythingPlayer extends Plugin {
     this.playerSessions.set(preview, session);
     session.ready = this.populatePlayer(preview, session, note, source);
     await session.ready;
+  }
+
+  async dispatchYouTubeFrame(iframe, note) {
+    const source = iframe.getAttribute("src");
+    const videoId = youtubeEmbedId(source);
+    if (!videoId) return;
+    let markdown;
+    try { markdown = await this.app.vault.cachedRead(note); } catch { return; }
+    if (youtubeIdFromNote(markdown) !== videoId || !iframe.isConnected) return;
+    const host = document.createElement("section");
+    host.className = "oca-note-player";
+    iframe.replaceWith(host);
+    await this.mountYouTubePlayer(host, note, source, markdown, videoId);
+  }
+
+  async mountYouTubePlayer(host, note, source, markdown, videoId) {
+    if (!await waitForAttachment(host)) return;
+    const preview = host.closest(".markdown-preview-view") || host.closest(".markdown-reading-view");
+    if (!preview) return;
+    host.classList.add("oca-player-placeholder");
+    host.textContent = "视频已固定在笔记顶部，向下阅读字幕时会继续播放。";
+    this.playerSessions ??= new Map();
+    const previous = this.playerSessions.get(preview);
+    if (previous?.notePath === note.path && previous.source === source && previous.videoId === videoId && preview.contains(previous.dock)) {
+      host.hidden = true;
+      return;
+    }
+    if (previous) this.disposePlayer(preview);
+    const dock = document.createElement("section");
+    dock.className = "oca-player-dock oca-youtube-dock";
+    preview.prepend(dock);
+    host.hidden = true;
+    const session = { notePath: note.path, source, videoId, dock, progressTimer: null, observer: null,
+      click: null, keydown: null, controller: null };
+    this.playerSessions.set(preview, session);
+    const cues = parseTranscript(markdown);
+    const header = dock.createDiv({ cls: "oca-player-header" });
+    header.createSpan({ text: cues.length ? "YouTube · 笔记字幕联动" : "YouTube · 笔记视频", cls: "oca-player-title" });
+    const status = dock.createDiv({ text: cues.length ? "播放器准备中…" : "播放器准备中… 无时间轴文字不支持跳转或高亮。", cls: "oca-player-hint" });
+    status.setAttribute("role", "status");
+    const iframe = dock.createEl("iframe", { cls: "oca-iframe" });
+    iframe.setAttribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-presentation");
+    iframe.setAttribute("allow", "autoplay; encrypted-media; fullscreen; picture-in-picture");
+    iframe.setAttribute("allowfullscreen", "true");
+    iframe.src = source;
+    const transport = dock.createDiv({ cls: "oca-youtube-transport" });
+    const slider = transport.createEl("input", { cls: "oca-youtube-seek" });
+    slider.type = "range";
+    slider.min = "0";
+    slider.max = "0";
+    slider.step = "1";
+    slider.value = "0";
+    slider.disabled = true;
+    slider.setAttribute("aria-label", "视频播放进度");
+    const clock = transport.createSpan({ text: "00:00 / --:--", cls: "oca-youtube-time" });
+    let duration = 0;
+    let scrubbing = false;
+    slider.addEventListener("input", () => {
+      scrubbing = true;
+      clock.textContent = `${videoClock(slider.value)} / ${videoClock(duration)}`;
+    });
+    slider.addEventListener("change", () => {
+      if (slider.disabled || !session.controller) { scrubbing = false; return; }
+      const target = Number(slider.value);
+      void session.controller.seek(target).catch(error => {
+        if (this.playerSessions.get(preview) === session) status.textContent = error.message;
+      }).finally(() => { scrubbing = false; });
+    });
+    let showProgress = () => {};
+    if (cues.length) {
+      const transcript = dock.createDiv({ cls: "oca-transcript" });
+      const buttons = [];
+      for (const cue of cues) {
+        const button = transcript.createEl("button", { cls: "oca-cue" });
+        button.createSpan({ text: cue.stamp, cls: "oca-cue-time" });
+        button.createSpan({ text: cue.text, cls: "oca-cue-text" });
+        buttons.push(button);
+      }
+      let activeCue = -1;
+      let resumeFollowingAt = 0;
+      const pauseFollowing = () => { resumeFollowingAt = Date.now() + 3000; };
+      for (const type of ["wheel", "touchstart", "pointerdown", "keydown"]) transcript.addEventListener(type, pauseFollowing);
+      showProgress = (seconds) => {
+        let index = -1;
+        for (let i = 0; i < cues.length; i++) {
+          if (cues[i].seconds <= seconds) index = i;
+          else break;
+        }
+        if (index !== activeCue) {
+          if (activeCue >= 0) buttons[activeCue].removeClass("is-active");
+          activeCue = index;
+          if (index >= 0) buttons[index].addClass("is-active");
+        }
+        if (index >= 0 && Date.now() >= resumeFollowingAt) {
+          const row = buttons[index];
+          const top = row.offsetTop;
+          const bottom = top + row.offsetHeight;
+          const viewportTop = transcript.scrollTop;
+          const viewportBottom = viewportTop + transcript.clientHeight;
+          if (top < viewportTop || bottom > viewportBottom) {
+            transcript.scrollTop = Math.max(0, top - Math.max(0, (transcript.clientHeight - row.offsetHeight) / 2));
+          }
+        }
+      };
+      const seek = async (seconds) => {
+        status.textContent = "正在跳转笔记视频…";
+        try {
+          if (!session.controller) throw new Error("笔记视频还未准备好，请稍后重试。");
+          await session.controller.seek(seconds);
+          if (this.playerSessions.get(preview) === session) status.textContent = "已跳转笔记内视频。";
+        } catch (error) {
+          if (this.playerSessions.get(preview) === session) status.textContent = error.message;
+        }
+      };
+      buttons.forEach((button, index) => button.addEventListener("click", () => void seek(cues[index].seconds)));
+      session.click = (event) => {
+        if (dock.contains(event.target)) return;
+        const code = event.target.closest?.("code");
+        if (code && !code.closest("pre") && /^\d{2}:\d{2}(?::\d{2})?$/.test(code.textContent.trim())) {
+          const linked = code.closest("a[href]");
+          if (linked && !youtubeLinkMatches(linked.href, videoId, secondsFromStamp(code.textContent.trim()))) return;
+          event.preventDefault(); event.stopPropagation();
+          void seek(secondsFromStamp(code.textContent.trim()));
+          return;
+        }
+        const anchor = event.target.closest?.("a[href]");
+        if (!anchor || !/^\d{2}:\d{2}(?::\d{2})?$/.test(anchor.textContent.trim())) return;
+        const seconds = secondsFromStamp(anchor.textContent.trim());
+        if (!youtubeLinkMatches(anchor.href, videoId, seconds)) return;
+        event.preventDefault(); event.stopPropagation();
+        void seek(seconds);
+      };
+      preview.addEventListener("click", session.click, true);
+      session.keydown = (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        const code = event.target.closest?.("code.oca-note-timestamp");
+        if (!code || dock.contains(code)) return;
+        const linked = code.closest("a[href]");
+        if (linked && !youtubeLinkMatches(linked.href, videoId, secondsFromStamp(code.textContent.trim()))) return;
+        event.preventDefault(); event.stopPropagation();
+        void seek(secondsFromStamp(code.textContent.trim()));
+      };
+      preview.addEventListener("keydown", session.keydown, true);
+      const prepare = () => {
+        for (const code of preview.querySelectorAll("code")) {
+          if (dock.contains(code) || code.closest("pre") || !/^\d{2}:\d{2}(?::\d{2})?$/.test(code.textContent.trim())) continue;
+          const linked = code.closest("a[href]");
+          if (linked && !youtubeLinkMatches(linked.href, videoId, secondsFromStamp(code.textContent.trim()))) continue;
+          code.classList.add("oca-note-timestamp");
+          code.setAttribute("role", "button");
+          code.setAttribute("tabindex", "0");
+        }
+      };
+      prepare();
+      session.observer = new MutationObserver(prepare);
+      session.observer.observe(preview, { childList: true, subtree: true });
+    }
+    try {
+      if (!this.youtubeControllerFactory) {
+        const modulePath = path.join(this.app.vault.adapter.getBasePath(), this.app.vault.configDir || ".obsidian",
+          "plugins", this.manifest.id, "youtube-player.js");
+        this.youtubeControllerFactory = require(modulePath).createYouTubeController;
+      }
+      session.controller = this.youtubeControllerFactory(iframe, videoId, {
+        onReady: () => { if (this.playerSessions.get(preview) === session) status.textContent = cues.length
+          ? "点击字幕时间可跳转，播放进度会高亮字幕。" : "视频可在笔记内播放。文字无时间轴，不支持按字幕跳转或高亮。"; },
+        onTime: (seconds) => { if (cues.length && this.playerSessions.get(preview) === session) showProgress(seconds); },
+        onProgress: (progress) => {
+          if (this.playerSessions.get(preview) !== session) return;
+          if (Number.isFinite(progress.duration) && progress.duration > 0) {
+            duration = progress.duration;
+            slider.max = String(Math.ceil(duration));
+            slider.disabled = false;
+          }
+          if (!scrubbing) {
+            slider.value = String(Math.min(progress.seconds, duration || progress.seconds));
+            clock.textContent = `${videoClock(progress.seconds)} / ${duration ? videoClock(duration) : "--:--"}`;
+          }
+        },
+        onError: (error) => { if (this.playerSessions.get(preview) === session) status.textContent = error.message; },
+      });
+    } catch (error) { status.textContent = error.message; }
   }
 
   async populatePlayer(preview, session, note, source) {

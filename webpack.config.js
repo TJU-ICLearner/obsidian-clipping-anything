@@ -153,6 +153,7 @@ module.exports = (env, argv) => {
 					{ from: "src/router.js", to: "router.js" },
 					{ from: "src/router-switch.js", to: "router-switch.js" },
 					{ from: "src/bilibili", to: "bilibili", globOptions: { ignore: ["**/*.test.ts"] } },
+					{ from: "src/youtube", to: "youtube", globOptions: { ignore: ["**/*.test.ts"] } },
 					{ from: "LICENSE", to: "LICENSE.txt" },
 					{ from: "NOTICE.md", to: "NOTICE.md" },
 					{ from: "providers.json", to: "providers.json" },
