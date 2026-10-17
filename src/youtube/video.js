@@ -29,6 +29,34 @@
     return root.querySelector(selector)?.textContent?.trim() || '';
   }
 
+  function shortsMetadata(document, videoId) {
+    const active = document.querySelector('ytd-reel-video-renderer[is-active], ytd-reel-video-renderer[active], ytd-reel-video-renderer.active');
+    const canonical = document.querySelector('link[rel="canonical"]')?.getAttribute('href')
+      || document.querySelector('meta[property="og:url"]')?.getAttribute('content') || '';
+    const canonicalId = videoIdFromUrl(canonical);
+    if (active) {
+      const attributeId = active.getAttribute('video-id') || active.getAttribute('data-video-id');
+      const linkId = Array.from(active.querySelectorAll('a[href]'))
+        .map(link => videoIdFromUrl(new URL(link.getAttribute('href'), 'https://www.youtube.com').href))
+        .find(Boolean);
+      const boundId = attributeId || linkId || canonicalId;
+      if (boundId !== videoId) throw new Error('Shorts 视频页面正在切换，请稍后刷新。');
+      return {
+        title: textAt(active, 'yt-shorts-video-title-view-model h2, h2'),
+        channel: textAt(active, '#channel-name, ytd-channel-name a'),
+        description: textAt(active, '[id="description-inline-expander"], [id="description"]'),
+      };
+    }
+    if (canonicalId === videoId) {
+      return {
+        title: document.querySelector('meta[property="og:title"]')?.getAttribute('content')?.trim() || '',
+        channel: '',
+        description: document.querySelector('meta[property="og:description"]')?.getAttribute('content')?.trim() || '',
+      };
+    }
+    return { title: '', channel: '', description: '' };
+  }
+
   function snapshot(document, value, expectedVideoId) {
     const videoId = videoIdFromUrl(value);
     if (!videoId) throw new Error('当前页面不是受支持的 YouTube 视频。');
@@ -37,7 +65,8 @@
     const watch = !isShort && document.querySelector('ytd-watch-flexy[video-id]');
     if (watch && watch.getAttribute('video-id') !== videoId) throw new Error('视频页面正在切换，请稍后刷新。');
 
-    const panel = document.querySelector(PANEL);
+    const staleWatch = isShort && document.querySelector('ytd-watch-flexy[video-id]');
+    const panel = staleWatch ? null : document.querySelector(PANEL);
     const container = panel?.querySelector('#segments-container');
     const expanded = panel && panel.getAttribute('visibility') !== 'ENGAGEMENT_PANEL_VISIBILITY_HIDDEN' && panel.getAttribute('hidden') === null;
     const cues = [];
@@ -54,18 +83,20 @@
         cues.push({ start, text });
       }
     }
-    const title = document.querySelector('meta[property="og:title"]')?.getAttribute('content')?.trim()
-      || textAt(document, 'ytd-watch-metadata h1, h1.ytd-watch-metadata, yt-shorts-video-title-view-model h2, ytd-reel-video-renderer h2')
-      || String(document.title || '').replace(/\s*-\s*YouTube$/, '').trim();
-    const channel = textAt(document, 'ytd-channel-name a, ytd-video-owner-renderer a, ytd-reel-player-overlay-renderer #channel-name')
-      || document.querySelector('link[itemprop="name"]')?.getAttribute('content')?.trim() || '';
-    const description = textAt(document, '#description-inline-expander, #description ytd-text-inline-expander');
+    const metadata = isShort ? shortsMetadata(document, videoId) : {
+      title: document.querySelector('meta[property="og:title"]')?.getAttribute('content')?.trim()
+        || textAt(document, 'ytd-watch-metadata h1, h1.ytd-watch-metadata')
+        || String(document.title || '').replace(/\s*-\s*YouTube$/, '').trim(),
+      channel: textAt(document, 'ytd-channel-name a, ytd-video-owner-renderer a')
+        || document.querySelector('link[itemprop="name"]')?.getAttribute('content')?.trim() || '',
+      description: textAt(document, '#description-inline-expander, #description ytd-text-inline-expander'),
+    };
     return {
       videoId,
-      title,
-      channel,
+      title: metadata.title,
+      channel: metadata.channel,
       url: isShort ? `https://www.youtube.com/shorts/${videoId}` : `https://www.youtube.com/watch?v=${videoId}`,
-      description,
+      description: metadata.description,
       chapters: [],
       cues,
       transcriptState: !expanded || !container ? 'unopened' : cues.length ? 'possibly-incomplete' : 'open-empty',

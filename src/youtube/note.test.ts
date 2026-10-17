@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { describe, expect, it } from 'vitest';
 function load() {
-  const scope: any = { URL, crypto: { getRandomValues: (array: Uint8Array) => array.fill(7) } };
+  const scope: any = { URL, TextEncoder, crypto: { getRandomValues: (array: Uint8Array) => array.fill(7) } };
   scope.globalThis = scope;
   vm.runInNewContext(readFileSync(new URL('./note.js', import.meta.url), 'utf8'), scope);
   return scope.OcaYouTubeNote;
@@ -37,5 +37,13 @@ describe('YouTube note model', () => {
     const model = load();
     expect(() => model.build(snapshot, { folder: '../elsewhere', randomBytes: () => new Uint8Array([1]) })).toThrow();
     expect(() => model.build(snapshot, { folder: 'Clippings', randomBytes: () => { throw Error('no entropy'); } })).toThrow();
+  });
+  it('keeps multilingual filenames within a filesystem component limit and removes controls', () => {
+    const title = `\u0000${'中文标题'.repeat(30)}\u0085`;
+    const note = load().build({ ...snapshot, title }, { folder: 'Clippings/YouTube', now: new Date('2026-10-17T00:00:00Z'), randomBytes: () => new Uint8Array(8) });
+    const name = note.filepath.split('/').at(-1)!;
+    expect(Buffer.byteLength(name, 'utf8')).toBeLessThanOrEqual(255);
+    expect(name).not.toMatch(/[\u0000-\u001f\u007f-\u009f]/);
+    expect(note.markdown).not.toMatch(/[\u0000\u0085]/);
   });
 });

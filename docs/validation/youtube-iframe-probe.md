@@ -49,6 +49,8 @@ The user then supplied `https://www.youtube.com/shorts/_i92TmBGF8k` for later te
 
 ## Release candidate gate, 2026-10-17
 
-Chrome extension 1.1.0 and companion plugin 1.3.0 are packaged as local installable candidates. The 26-file test suite passed 256/256, the Chrome build completed, both ZIP roots and runtime files were inspected, ZIP integrity passed, and `SHA256SUMS` verified both archives. A staged companion loaded in the actual Obsidian vault.
+Chrome extension 1.1.0 and companion plugin 1.3.0 are packaged as local installable candidates. The initial 26-file test suite passed 256/256, the Chrome build completed, both ZIP roots and runtime files were inspected, ZIP integrity passed, and `SHA256SUMS` verified both archives. A staged companion loaded in the actual Obsidian vault.
+
+Final review exposed three candidate defects. Tests reproduced each: a YouTube home/search → video SPA route lacked a collector, a Shorts page could mix a new ID with old metadata, and a long multilingual title could exceed a filesystem component limit. All three fixes passed focused tests and the full 26-file suite (259/259). The Chrome candidate was rebuilt and both ZIPs rechecked. SHA-256: Chrome `6afbc020b680f98501fcca22498fe9950a13f7e6d4842ec451752a5a435b30e7`; companion `bf4886480a04018a9607834e4b9ddb979f2ee56f28e5e50078b5ef7ff31d4bcc`. The final four companion files were copied into the local SOC Learning plugin folder and matched byte for byte; Obsidian should be restarted to load version 1.3.0.
 
 The full manual release matrix is still open: separate human-captioned, auto-captioned, no-transcript, and non-embeddable watch examples; paused seek and restart behavior for the final packaged version; a fresh Bilibili regression; and direct playback of the supplied Shorts ID. Only the ordinary watch-video end-to-end path described above has user confirmation. Do not publish a GitHub Release or describe these candidates as stable until this matrix passes.

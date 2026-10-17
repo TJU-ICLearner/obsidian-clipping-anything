@@ -22,6 +22,13 @@ describe('YouTube popup route and actions', () => {
     expect(routed('https://www.youtube.com/shorts/bad')).toBe('popup.html');
     expect(routed('https://www.bilibili.com/video/BV1x')).toBe('bilibili/popup.html');
   });
+  it('loads the collector on YouTube home before SPA navigation to watch or Shorts', () => {
+    const manifest = JSON.parse(readFileSync(new URL('../manifest.chrome.json', import.meta.url), 'utf8'));
+    const collector = manifest.content_scripts.find((entry: any) => entry.js.includes('youtube/content.js'));
+    expect(collector.matches).toContain('https://www.youtube.com/*');
+    expect(routed(watch)).toBe('youtube/popup.html');
+    expect(routed('https://www.youtube.com/shorts/_i92TmBGF8k')).toBe('youtube/popup.html');
+  });
   it('validates the same active tab and video before copy or save', async () => {
     const popup = loadPopup();
     const tabs = { query: vi.fn(async () => [{ id: 7, url: watch }]), get: vi.fn(async () => ({ id: 7, url: watch })) };

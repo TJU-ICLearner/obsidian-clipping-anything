@@ -64,7 +64,7 @@
 		},
 		{
 			"matches": [
-				"https://www.youtube.com/watch*", "https://www.youtube.com/shorts/*"
+				"https://www.youtube.com/*"
 			],
 			"js": [
 				"youtube/video.js",

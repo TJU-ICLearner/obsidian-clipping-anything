@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const ID = /^[A-Za-z0-9_-]{11}$/;
-  const oneLine = value => String(value || '').replace(/[\r\n\t]+/g, ' ').replace(/\s+/g, ' ').trim();
+  const oneLine = value => String(value || '').replace(/[\u0000-\u001f\u007f-\u009f]+/g, ' ').replace(/\s+/g, ' ').trim();
   const md = value => oneLine(value).replace(/([\\`*_{}\[\]()<>#+!|~])/g, '\\$1');
   const yaml = value => JSON.stringify(String(value || '').replace(/[\u0000-\u001f]/g, ' '));
   function stamp(seconds) {
@@ -18,12 +18,22 @@
     return parts.join('/');
   }
   function safeTitle(value) {
-    return oneLine(value).replace(/[\\/:*?"<>|.]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 72) || 'YouTube video';
+    const cleaned = oneLine(value).replace(/[\\/:*?"<>|.]+/g, ' ').replace(/\s+/g, ' ').trim();
+    const encoder = new TextEncoder();
+    let result = '';
+    let bytes = 0;
+    for (const character of cleaned) {
+      const length = encoder.encode(character).length;
+      if (bytes + length > 180) break;
+      result += character;
+      bytes += length;
+    }
+    return result.trim() || 'YouTube video';
   }
   function randomSuffix(randomBytes) {
     const bytes = randomBytes ? randomBytes() : crypto.getRandomValues(new Uint8Array(8));
     if (!ArrayBuffer.isView(bytes) || bytes.BYTES_PER_ELEMENT !== 1 || bytes.length < 4) throw new Error('无法生成唯一笔记名。');
-    return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+    return Array.from(bytes.slice(0, 8), byte => byte.toString(16).padStart(2, '0')).join('');
   }
   function build(snapshot, options = {}) {
     const id = String(snapshot?.videoId || '');

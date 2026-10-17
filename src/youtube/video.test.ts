@@ -57,6 +57,25 @@ describe('YouTube visible snapshot', () => {
     expect(video.snapshot(page('<ytd-engagement-panel-section-list-renderer target-id="engagement-panel-searchable-transcript" visibility="ENGAGEMENT_PANEL_VISIBILITY_EXPANDED"><div id="segments-container"></div></ytd-engagement-panel-section-list-renderer>'), url).transcriptState).toBe('open-empty');
     expect(() => video.snapshot(page(), url, 'abcdefghijk')).toThrow(/视频/);
   });
+  it('binds Shorts metadata to the active reel and rejects a transitioning reel', () => {
+    const video = loadVideo();
+    const shortUrl = 'https://www.youtube.com/shorts/_i92TmBGF8k';
+    const document = page(`<meta property="og:title" content="Previous watch title">
+      <ytd-watch-metadata><h1>Previous watch title</h1></ytd-watch-metadata>
+      <ytd-video-owner-renderer><a>Previous channel</a></ytd-video-owner-renderer>
+      <div id="description-inline-expander">Previous description</div>
+      <ytd-reel-video-renderer video-id="M7lc1UVf-VE"><h2>Inactive reel</h2></ytd-reel-video-renderer>
+      <ytd-reel-video-renderer is-active video-id="_i92TmBGF8k">
+        <yt-shorts-video-title-view-model><h2>Current Short</h2></yt-shorts-video-title-view-model>
+        <div id="channel-name">Current channel</div><div id="description-inline-expander">Current description</div>
+      </ytd-reel-video-renderer>`);
+    const result = video.snapshot(document, shortUrl);
+    expect(result.title).toBe('Current Short');
+    expect(result.channel).toBe('Current channel');
+    expect(result.description).toBe('Current description');
+    document.querySelector('[is-active]')?.setAttribute('video-id', 'abcdefghijk');
+    expect(() => video.snapshot(document, shortUrl)).toThrow(/切换|匹配/);
+  });
 
   it('content listener checks active URL against requested ID at response time', () => {
     const video = loadVideo();
