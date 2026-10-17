@@ -2,7 +2,7 @@
 	"manifest_version": 3,
 	"default_locale": "en",
 	"name": "Obsidian Clipping Anything",
-	"version": "1.1.6",
+	"version": "1.1.7",
 	"description": "Save web pages, Bilibili and YouTube videos to Obsidian.",
 	"permissions": [
 		"activeTab",

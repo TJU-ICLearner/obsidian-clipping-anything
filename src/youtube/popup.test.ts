@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 const { JSDOM } = require('jsdom');
 const watch = 'https://www.youtube.com/watch?v=M7lc1UVf-VE';
 function loadPopup() {
-  const scope: any = { URL, document: { getElementById: () => null }, TextEncoder, crypto: { getRandomValues: (array: Uint8Array) => array.fill(1) } };
+  const scope: any = { URL, DOMParser: new JSDOM('').window.DOMParser, document: { getElementById: () => null }, TextEncoder, crypto: { getRandomValues: (array: Uint8Array) => array.fill(1) } };
   scope.globalThis = scope;
   vm.runInNewContext(readFileSync(new URL('./note.js', import.meta.url), 'utf8'), scope);
   vm.runInNewContext(readFileSync(new URL('./popup.js', import.meta.url), 'utf8'), scope);
@@ -97,6 +97,49 @@ describe('YouTube popup route and actions', () => {
     expect(status).toContain('容器 0');
     expect(status).toContain('时间 1');
     expect(status).toContain('非完整字幕');
+  });
+  it('accepts timed transcript segments from web clipping only for the current video', () => {
+    const popup = loadPopup();
+    const html = '<iframe src="https://www.youtube.com/embed/fwdzsY9KWKk"></iframe><div class="youtube transcript">' +
+      '<p class="transcript-segment"><strong><span class="timestamp" data-timestamp="0">0:00</span></strong> · AI Agent 是什么</p>' +
+      '<p class="transcript-segment"><strong><span class="timestamp" data-timestamp="54">0:54</span></strong> · 先说结论</p></div>';
+    expect(JSON.stringify(popup.parseWebTranscript(html, 'fwdzsY9KWKk'))).toBe(JSON.stringify([
+      { start: 0, text: 'AI Agent 是什么' }, { start: 54, text: '先说结论' },
+    ]));
+    expect(popup.parseWebTranscript(html, 'x4DL9SRA3Og')).toHaveLength(0);
+    expect(popup.parseWebTranscript('<iframe src="https://www.youtube.com/embed/fwdzsY9KWKk"></iframe><p>0:54 简介内容</p>', 'fwdzsY9KWKk')).toHaveLength(0);
+  });
+  it('recognizes the actual YouTube markup returned by the bundled web extractor', () => {
+    const Defuddle = require('defuddle');
+    const pageUrl = 'https://www.youtube.com/watch?v=fwdzsY9KWKk';
+    const page = new JSDOM('<html><body><ytd-engagement-panel-section-list-renderer target-id="engagement-panel-searchable-transcript"><div id="segments-container">' +
+      '<ytd-transcript-segment-renderer><span class="segment-timestamp">0:54</span><span class="segment-text">先说结论</span></ytd-transcript-segment-renderer>' +
+      '</div></ytd-engagement-panel-section-list-renderer></body></html>', { url: pageUrl });
+    const webResult = new Defuddle(page.window.document, { url: pageUrl }).parse();
+    const popup = loadPopup();
+    expect(JSON.stringify(popup.parseWebTranscript(webResult.content, 'fwdzsY9KWKk'))).toBe(JSON.stringify([{ start: 54, text: '先说结论' }]));
+  });
+  it('falls back to the web clipper timed transcript when the video collector finds none', async () => {
+    const html = readFileSync(new URL('./popup.html', import.meta.url), 'utf8').replace(/<script[^>]*><\/script>/g, '');
+    const dom = new JSDOM(html, { url: 'chrome-extension://test/youtube/popup.html' });
+    const document = dom.window.document;
+    const pageUrl = 'https://www.youtube.com/watch?v=fwdzsY9KWKk';
+    const snapshot = { videoId: 'fwdzsY9KWKk', title: '15分鐘學會AI Agent｜完整講解', channel: '李厂长来了', url: pageUrl,
+      description: '宣传简介。', chapters: [], cues: [], transcriptState: 'open-empty' };
+    const webHtml = '<iframe src="https://www.youtube.com/embed/fwdzsY9KWKk"></iframe><div class="youtube transcript">' +
+      '<p class="transcript-segment"><strong><span class="timestamp" data-timestamp="54">0:54</span></strong> · 先说结论</p></div>';
+    const chrome = {
+      tabs: { query: vi.fn(async () => [{ id: 7, url: pageUrl }]), sendMessage: vi.fn(async () => ({ ok: true, payload: snapshot })) },
+      storage: { sync: { get: vi.fn(async () => ({ vaults: [] })), set: vi.fn(async () => {}) }, local: { get: vi.fn(async () => ({})), set: vi.fn(async () => {}) } },
+      runtime: { sendMessage: vi.fn(async () => ({ content: webHtml })), openOptionsPage: vi.fn() },
+    };
+    const context: any = { URL, document, DOMParser: dom.window.DOMParser, chrome, navigator: dom.window.navigator, crypto: dom.window.crypto, TextEncoder };
+    context.globalThis = context;
+    vm.runInNewContext(readFileSync(new URL('./note.js', import.meta.url), 'utf8'), context);
+    vm.runInNewContext(readFileSync(new URL('./popup.js', import.meta.url), 'utf8'), context);
+    await vi.waitFor(() => expect(document.getElementById('transcript-status')?.textContent).toContain('1 条带时间字幕'));
+    expect((document.getElementById('markdown-preview') as HTMLTextAreaElement).value).toContain('`00:54` 先说结论');
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ action: 'sendMessageToTab', tabId: 7, message: { action: 'getPageContent' } });
   });
   it('converts a closed message channel into a recovery instruction', () => {
     const popup = loadPopup();
