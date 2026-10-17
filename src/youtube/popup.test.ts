@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { describe, expect, it, vi } from 'vitest';
+const { JSDOM } = require('jsdom');
 const watch = 'https://www.youtube.com/watch?v=M7lc1UVf-VE';
 function loadPopup() {
   const scope: any = { URL, document: { getElementById: () => null } };
@@ -47,6 +48,43 @@ describe('YouTube popup route and actions', () => {
     expect(popup.transcriptSummary({ transcriptState: 'possibly-incomplete', cues: [{ start: 1, text: 'a' }] })).toContain('可能不完整');
     expect(popup.transcriptSummary({ transcriptState: 'complete', cues: [{ start: 1, text: 'a' }] })).toContain('已遍历');
     expect(popup.canSave({ videoId: 'M7lc1UVf-VE', cues: [] })).toBe(true);
+  });
+  it('warns that an uncaptioned Shorts clip will save only video information', () => {
+    const popup = loadPopup();
+    const status = popup.transcriptSummary({
+      videoId: '_i92TmBGF8k', url: 'https://www.youtube.com/shorts/_i92TmBGF8k',
+      transcriptState: 'unopened', cues: [],
+    });
+    expect(status).toContain('只会保存视频信息');
+    expect(status).toContain('普通播放页');
+  });
+  it('offers a same-tab watch-page button only for Shorts without visible cues', async () => {
+    const short = 'https://www.youtube.com/shorts/_i92TmBGF8k';
+    const html = readFileSync(new URL('./popup.html', import.meta.url), 'utf8').replace(/<script[^>]*><\/script>/g, '');
+    const dom = new JSDOM(html, { url: 'chrome-extension://test/youtube/popup.html' });
+    const document = dom.window.document;
+    const snapshot = { videoId: '_i92TmBGF8k', title: 'SOC', channel: '', url: short, description: '', chapters: [], cues: [] as Array<{ start: number; text: string }>, transcriptState: 'unopened' };
+    const update = vi.fn(async () => undefined);
+    const chrome = {
+      tabs: { query: vi.fn(async () => [{ id: 7, url: short }]), sendMessage: vi.fn(async () => ({ ok: true, payload: snapshot })), update },
+      storage: { sync: { get: vi.fn(async () => ({ vaults: [] })), set: vi.fn(async () => {}) }, local: { get: vi.fn(async () => ({})), set: vi.fn(async () => {}) } },
+      runtime: { openOptionsPage: vi.fn() },
+    };
+    const context: any = { URL, document, chrome, navigator: dom.window.navigator, crypto: dom.window.crypto, TextEncoder };
+    context.globalThis = context;
+    vm.runInNewContext(readFileSync(new URL('./note.js', import.meta.url), 'utf8'), context);
+    vm.runInNewContext(readFileSync(new URL('./popup.js', import.meta.url), 'utf8'), context);
+    await vi.waitFor(() => expect(document.getElementById('message')?.textContent).toBe('预览已更新。'));
+    const button = document.getElementById('open-watch') as HTMLButtonElement;
+    expect(button).not.toBeNull();
+    expect(button.hidden).toBe(false);
+    button.click();
+    await vi.waitFor(() => expect(update).toHaveBeenCalledWith(7, { url: 'https://www.youtube.com/watch?v=_i92TmBGF8k' }));
+    snapshot.cues = [{ start: 1, text: 'Visible caption' }];
+    snapshot.transcriptState = 'complete';
+    document.getElementById('refresh')?.click();
+    await vi.waitFor(() => expect(document.getElementById('transcript-status')?.textContent).toContain('1 条字幕'));
+    expect(button.hidden).toBe(true);
   });
   it('has reciprocal web-mode link and independent YouTube settings controls', () => {
     const html = readFileSync(new URL('./popup.html', import.meta.url), 'utf8');

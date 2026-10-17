@@ -25,6 +25,7 @@ button:disabled { opacity:.45; cursor:not-allowed; }
 .card-head { display:flex; align-items:center; justify-content:space-between; }.card-head h2 { margin:0; }
 .card-head button { border:0; background:#edf4e7; border-radius:7px; padding:5px 10px; }
 #transcript-status { color:var(--muted); font-size:12px; }
+#open-watch { width:100%; margin-top:8px; border:1px solid #cdd9cd; border-radius:8px; background:#f4f8ed; color:#284b30; padding:8px 10px; text-align:left; font-weight:650; }
 #transcript-preview { max-height:100px; overflow:auto; margin:8px 0 0; white-space:pre-wrap; font:12px/1.5 inherit; }
 .destination label { display:block; margin:8px 0 3px; font-size:11px; color:var(--muted); }
 .destination select,.destination input { width:100%; border:1px solid #cdd8d0; border-radius:8px; background:white; padding:7px; }

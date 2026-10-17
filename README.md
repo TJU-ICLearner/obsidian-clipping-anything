@@ -4,7 +4,7 @@
 
 这个项目始于把 [Obsidian Web Clipper](https://github.com/obsidianmd/obsidian-clipper) 的网页剪藏能力和 [Bilibili Obsidian Clipper](https://github.com/haixiong1997/Bilibili-Obsidian-Clipper) 的视频字幕能力放进同一个扩展。长期目标是用一致的入口剪藏不同平台的文章、帖子、视频与字幕，并让保存后的媒体笔记在 Obsidian 中保持可阅读、可播放、可定位到具体片段。
 
-本分支的 YouTube 交付候选版本是 **Chrome 扩展 1.1.1 + Obsidian 配套插件 1.3.0**。此前的公开稳定版仍可从 Releases 下载。项目是独立社区整合版本，并非 Obsidian 官方扩展。
+本分支的 YouTube 交付候选版本是 **Chrome 扩展 1.1.2 + Obsidian 配套插件 1.3.0**。此前的公开稳定版仍可从 Releases 下载。项目是独立社区整合版本，并非 Obsidian 官方扩展。
 
 ## 平台支持状态
 
@@ -42,7 +42,7 @@
 
 - 普通 `youtube.com/watch?v=...` 视频和标准 `youtube.com/shorts/...` 链接进入 YouTube 专用模式；可随时切换到“网页剪藏”，再从网页模式返回。
 - 只读取 YouTube 页面**已打开的文字记录**。普通视频先打开“显示文字记录”，再点击扩展弹窗的“刷新”；扩展会依次滚动文字记录、收集逐段渲染的字幕，并恢复原滚动位置。不会从隐藏接口下载字幕；若未能遍历到末尾，弹窗显示已抓取条数及“可能不完整”。
-- 没有可见文字记录时，仍可保存标题、频道、来源与笔记内播放器；`## 字幕` 明确提示未读取到字幕。Shorts 的文字记录可见性取决于 YouTube 页面。
+- 没有可见文字记录时，仍可保存标题、频道、来源与笔记内播放器；`## 字幕` 明确提示未读取到字幕。Shorts 弹窗会说明本次只能保存视频信息，并提供按钮在当前标签页打开同一视频的普通播放页，以检查那里是否有“显示文字记录”。若普通页也没有，本版不会生成字幕。
 - 弹窗可预览完整 Markdown、选择与网页及 B 站模式共用的仓库、指定独立目标文件夹。每次剪藏生成新文件名；保存前写入系统剪贴板，再发出 Obsidian URI。弹窗只提示已交给 Obsidian，需到目标仓库核对笔记。
 - 配套插件在**阅读视图**把 YouTube 嵌入视频固定于笔记开头，点击字幕时间控制这一播放器；播放进度反向高亮字幕。滚动离开视频后仍保持同一会话。部分视频可能禁止嵌入，此时插件会显示错误状态。
 
@@ -68,7 +68,7 @@
 
 本分支的候选版请先按下方“从源码构建与验证”生成 `builds/` 中的两个 ZIP；[Releases](https://github.com/TJU-ICLearner/obsidian-clipping-anything/releases/latest) 目前提供已发布的稳定版。安装候选版时：
 
-1. **Chrome 扩展**：解压 `obsidian-clipping-anything-1.1.1-chrome.zip` 到固定目录。打开 `chrome://extensions/`，开启“开发者模式”，选择“加载已解压的扩展程序”，选中解压后**直接包含 `manifest.json` 的目录**。
+1. **Chrome 扩展**：解压 `obsidian-clipping-anything-1.1.2-chrome.zip` 到固定目录。打开 `chrome://extensions/`，开启“开发者模式”，选择“加载已解压的扩展程序”，选中解压后**直接包含 `manifest.json` 的目录**。
 2. **Obsidian 配套插件**：解压 `obsidian-clipping-anything-player-1.3.0.zip` 到目标仓库的 `.obsidian/plugins/`。最终应存在 `.obsidian/plugins/obsidian-clipper-anything-player/manifest.json`，同目录还有 `main.js`、`styles.css` 和 `youtube-player.js`。在 Obsidian 的“设置 → 第三方插件”中启用 **Obsidian Clipping Anything Player**。
 3. 完全重启 Obsidian，使用扩展剪藏 B 站或 YouTube 视频；在保存笔记的阅读视图中播放顶部视频，点击字幕时间即可跳转。
 
