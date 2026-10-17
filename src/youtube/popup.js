@@ -30,14 +30,23 @@
     if (snapshot.cues.length && snapshot.transcriptState === 'complete') return `已遍历文字记录，读取 ${snapshot.cues.length} 条字幕。`;
     if (snapshot.cues.length && snapshot.transcriptState === 'possibly-incomplete') return `已读取 ${snapshot.cues.length} 条页面文字记录；页面可能只渲染了一部分，结果可能不完整。`;
     const hasExcerpt = globalThis.OcaYouTubeNote?.untimedSentences(snapshot.description, snapshot.title).length;
+    if (snapshot.transcriptState === 'open-unrecognized' || snapshot.transcriptState === 'open-empty') {
+      const d = snapshot.transcriptDiagnostics || {};
+      return `文字记录已展开，但未识别到带时间的字幕。诊断：面板 ${d.panel ?? 0}、容器 ${d.container ?? 0}、行 ${d.rows ?? 0}、时间 ${d.timestamps ?? 0}。现在保存${hasExcerpt ? '的只是简介摘录，非完整字幕' : '不会包含字幕'}。`;
+    }
     if (snapshot.captionsAvailable && snapshot.transcriptState === 'unopened') return `这个视频有字幕。请在 YouTube 展开“显示文字记录”，再点刷新。现在保存${hasExcerpt ? '的只是简介摘录，非完整字幕' : '不会包含字幕'}。`;
     if (hasExcerpt) return '未取得带时间的文字记录；只会保存简介摘录，非完整字幕，无时间轴且未经音频校对。不能按字幕跳转或高亮。';
     if (shortsWatchUrl(snapshot)) return '当前 Shorts 页面没有可读取的文字记录；本次只会保存视频信息。可到普通播放页查看是否有“显示文字记录”。';
     if (snapshot.transcriptState === 'open-empty') return '文字记录已打开，但当前没有可读取的字幕；可以仅保存视频信息。';
     return '在 YouTube 打开文字记录后，点击这里的刷新。当前可以仅保存视频信息。';
   }
+  function readError(error) {
+    const detail = String(error?.message || error);
+    if (/message channel closed|message port closed|extension context invalidated/i.test(detail)) return '读取连接中断。请刷新 YouTube 网页，重新打开文字记录，再点扩展中的“刷新”。';
+    return detail;
+  }
   function canSave(snapshot) { return /^[A-Za-z0-9_-]{11}$/.test(snapshot?.videoId || ''); }
-  globalThis.OcaYouTubePopup = { validateSnapshotTab, transcriptSummary, canSave };
+  globalThis.OcaYouTubePopup = { validateSnapshotTab, transcriptSummary, readError, canSave };
 
   if (!document.getElementById('youtube-popup')) return;
   const el = Object.fromEntries(['title','channel','source','transcript-status','open-watch','transcript-preview','vault','folder','filepath','markdown-preview','refresh','copy','save','message','settings'].map(id => [id, document.getElementById(id)]));
@@ -75,6 +84,8 @@
   }
   async function refresh() {
     captured = null; note = null; el.save.disabled = true; el.copy.disabled = true;
+    el.title.textContent = '正在读取视频…';
+    el['transcript-status'].textContent = '正在读取…';
     message('正在读取当前页面…');
     try {
       const tab = (await chrome.tabs.query({ active: true, currentWindow: true }))[0];
@@ -85,7 +96,11 @@
       if (!await validateSnapshotTab(chrome.tabs, { tabId: tab.id, videoId: id })) throw new Error('视频页面已切换，请重新刷新预览。');
       captured = response.payload; capturedTabId = tab.id;
       render(); message('预览已更新。');
-    } catch (error) { message(String(error.message || error)); }
+    } catch (error) {
+      el.title.textContent = '读取失败';
+      el['transcript-status'].textContent = '读取失败，请查看下方提示。';
+      message(readError(error));
+    }
   }
   async function checkedNote() {
     if (!note || !captured || !canSave(captured)) throw new Error('请先刷新视频预览。');

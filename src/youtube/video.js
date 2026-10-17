@@ -109,6 +109,13 @@
     const panel = staleWatch ? null : document.querySelector(PANEL);
     const container = panel?.querySelector('#segments-container');
     const expanded = panel && panel.getAttribute('visibility') !== 'ENGAGEMENT_PANEL_VISIBILITY_HIDDEN' && panel.getAttribute('hidden') === null;
+    const transcriptDiagnostics = {
+      panel: panel ? 1 : 0,
+      expanded: expanded ? 1 : 0,
+      container: container ? 1 : 0,
+      rows: container?.querySelectorAll(ROW).length || 0,
+      timestamps: panel?.querySelectorAll('[class*="timestamp"], [class*="Timestamp"]').length || 0,
+    };
     const cues = [];
     const seen = new Set();
     if (expanded && container) {
@@ -147,7 +154,8 @@
       captionsAvailable: Boolean(player?.captionsAvailable),
       chapters: [],
       cues,
-      transcriptState: !expanded || !container ? 'unopened' : cues.length ? 'possibly-incomplete' : 'open-empty',
+      transcriptDiagnostics,
+      transcriptState: !expanded ? 'unopened' : !container ? 'open-unrecognized' : cues.length ? 'possibly-incomplete' : 'open-empty',
     };
   }
 
@@ -174,7 +182,7 @@
       const finish = () => { observer.disconnect(); clearTimeout(quiet); clearTimeout(hard); resolve(); };
       const observer = new MutationObserver(() => { clearTimeout(quiet); quiet = setTimeout(finish, 60); });
       observer.observe(container, { childList: true, subtree: true, characterData: true });
-      const hard = setTimeout(finish, 400);
+      const hard = setTimeout(finish, 120);
     });
   }
 
@@ -194,6 +202,9 @@
       for (const cue of partial.cues) cues.set(`${cue.start}\u0000${cue.text}`, cue);
     };
     const wait = options.waitForRender || (() => waitForRows(container));
+    const now = options.now || Date.now;
+    const started = now();
+    const maxDurationMs = options.maxDurationMs || 25000;
     const move = async position => {
       const rendered = wait();
       scroller.scrollTop = position;
@@ -204,7 +215,7 @@
     try {
       addVisible();
       await move(0);
-      for (let step = 0; step < (options.maxSteps || 200); step++) {
+      for (let step = 0; step < (options.maxSteps || 200) && now() - started < maxDurationMs; step++) {
         addVisible();
         const atBottom = scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 2;
         if (atBottom) {

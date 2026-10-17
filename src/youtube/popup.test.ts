@@ -84,6 +84,42 @@ describe('YouTube popup route and actions', () => {
     expect(status).toContain('简介摘录');
     expect(status).toContain('非完整字幕');
   });
+  it('shows structural diagnostics for an opened transcript that yielded no timed rows', () => {
+    const popup = loadPopup();
+    const status = popup.transcriptSummary({
+      videoId: 'x4DL9SRA3Og', url: 'https://www.youtube.com/watch?v=x4DL9SRA3Og',
+      transcriptState: 'open-unrecognized', cues: [], captionsAvailable: true,
+      transcriptDiagnostics: { panel: 1, expanded: 1, container: 0, rows: 0, timestamps: 1 },
+      description: '第一句话介绍芯片的组成。第二句话解释处理器的作用。第三句话继续讲解不同部件的功能。第四句话介绍它们怎样协同工作。第五句话说明集成的好处。',
+    });
+    expect(status).toContain('已展开');
+    expect(status).toContain('面板 1');
+    expect(status).toContain('容器 0');
+    expect(status).toContain('时间 1');
+    expect(status).toContain('非完整字幕');
+  });
+  it('converts a closed message channel into a recovery instruction', () => {
+    const popup = loadPopup();
+    expect(popup.readError(new Error('A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received'))).toContain('刷新 YouTube 网页');
+    expect(popup.readError(new Error('A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received'))).not.toContain('A listener indicated');
+  });
+  it('replaces the indefinite loading header when page reading disconnects', async () => {
+    const html = readFileSync(new URL('./popup.html', import.meta.url), 'utf8').replace(/<script[^>]*><\/script>/g, '');
+    const dom = new JSDOM(html, { url: 'chrome-extension://test/youtube/popup.html' });
+    const document = dom.window.document;
+    const chrome = {
+      tabs: { query: vi.fn(async () => [{ id: 7, url: watch }]), sendMessage: vi.fn(async () => { throw new Error('A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received'); }) },
+      storage: { sync: { get: vi.fn(async () => ({ vaults: [] })), set: vi.fn(async () => {}) }, local: { get: vi.fn(async () => ({})), set: vi.fn(async () => {}) } },
+      runtime: { openOptionsPage: vi.fn() },
+    };
+    const context: any = { URL, document, chrome, navigator: dom.window.navigator, crypto: dom.window.crypto, TextEncoder };
+    context.globalThis = context;
+    vm.runInNewContext(readFileSync(new URL('./note.js', import.meta.url), 'utf8'), context);
+    vm.runInNewContext(readFileSync(new URL('./popup.js', import.meta.url), 'utf8'), context);
+    await vi.waitFor(() => expect(document.getElementById('message')?.textContent).toContain('刷新 YouTube 网页'));
+    expect(document.getElementById('title')?.textContent).toBe('读取失败');
+    expect(document.getElementById('save')?.hasAttribute('disabled')).toBe(true);
+  });
   it('offers a same-tab watch-page button only for Shorts without visible cues', async () => {
     const short = 'https://www.youtube.com/shorts/_i92TmBGF8k';
     const html = readFileSync(new URL('./popup.html', import.meta.url), 'utf8').replace(/<script[^>]*><\/script>/g, '');

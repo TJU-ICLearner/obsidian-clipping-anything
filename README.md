@@ -4,7 +4,7 @@
 
 这个项目始于把 [Obsidian Web Clipper](https://github.com/obsidianmd/obsidian-clipper) 的网页剪藏能力和 [Bilibili Obsidian Clipper](https://github.com/haixiong1997/Bilibili-Obsidian-Clipper) 的视频字幕能力放进同一个扩展。长期目标是用一致的入口剪藏不同平台的文章、帖子、视频与字幕，并让保存后的媒体笔记在 Obsidian 中保持可阅读、可播放、可定位到具体片段。
 
-本分支的 YouTube 交付候选版本是 **Chrome 扩展 1.1.4 + Obsidian 配套插件 1.3.2**。此前的公开稳定版仍可从 Releases 下载。项目是独立社区整合版本，并非 Obsidian 官方扩展。
+本分支的 YouTube 交付候选版本是 **Chrome 扩展 1.1.5 + Obsidian 配套插件 1.3.2**。此前的公开稳定版仍可从 Releases 下载。项目是独立社区整合版本，并非 Obsidian 官方扩展。
 
 ## 平台支持状态
 
@@ -41,7 +41,7 @@
 ### 3. YouTube 视频与 Shorts 剪藏
 
 - 普通 `youtube.com/watch?v=...` 视频和标准 `youtube.com/shorts/...` 链接进入 YouTube 专用模式；可随时切换到“网页剪藏”，再从网页模式返回。
-- 只读取 YouTube 页面**已打开的文字记录**。普通视频先打开“显示文字记录”，再点击扩展弹窗的“刷新”；扩展会依次滚动文字记录、收集逐段渲染的字幕，并恢复原滚动位置。不会从隐藏接口下载字幕；若未能遍历到末尾，弹窗显示已抓取条数及“可能不完整”。
+- 只读取 YouTube 页面**已打开的文字记录**。普通视频先打开“显示文字记录”，再点击扩展弹窗的“刷新”；扩展会依次滚动文字记录、收集逐段渲染的字幕，并恢复原滚动位置。不会从隐藏接口下载字幕；单次遍历有时间上限，若未能遍历到末尾，弹窗显示已抓取条数及“可能不完整”。若面板已展开却识别为 0 条，弹窗会显示面板、容器、字幕行和时间标签的诊断计数。
 - 普通视频的标题、频道、简介与字幕可用状态必须与当前视频 ID 匹配；若 YouTube 站内切换后仍残留上一个视频的资料，扩展会提示刷新视频网页。有字幕却未读取到文字记录时，弹窗会提示先展开“显示文字记录”再刷新。
 - 没有可见的带时间文字记录时，会优先读取与当前视频 ID 匹配的原始视频简介，清掉页面按钮、统计数字、标签等杂项。若简介包含明显的连续文字，会放入 `## 简介摘录`，并标明它不是完整字幕、未经音频校对且没有时间轴；纯链接或宣传内容仍留在简介。此模式没有时间跳转或高亮，也不会猜测时间戳。
 - Shorts 弹窗在没有可读时间字幕时，提供按钮在当前标签页打开同一视频的普通播放页，以检查那里是否有“显示文字记录”。没有适合整理的口播文字时，仅保存视频信息并明确提示。
@@ -70,7 +70,7 @@
 
 本分支的候选版请先按下方“从源码构建与验证”生成 `builds/` 中的两个 ZIP；[Releases](https://github.com/TJU-ICLearner/obsidian-clipping-anything/releases/latest) 目前提供已发布的稳定版。安装候选版时：
 
-1. **Chrome 扩展**：解压 `obsidian-clipping-anything-1.1.4-chrome.zip` 到固定目录。打开 `chrome://extensions/`，开启“开发者模式”，选择“加载已解压的扩展程序”，选中解压后**直接包含 `manifest.json` 的目录**。
+1. **Chrome 扩展**：解压 `obsidian-clipping-anything-1.1.5-chrome.zip` 到固定目录。打开 `chrome://extensions/`，开启“开发者模式”，选择“加载已解压的扩展程序”，选中解压后**直接包含 `manifest.json` 的目录**。
 2. **Obsidian 配套插件**：解压 `obsidian-clipping-anything-player-1.3.2.zip` 到目标仓库的 `.obsidian/plugins/`。最终应存在 `.obsidian/plugins/obsidian-clipper-anything-player/manifest.json`，同目录还有 `main.js`、`styles.css` 和 `youtube-player.js`。在 Obsidian 的“设置 → 第三方插件”中启用 **Obsidian Clipping Anything Player**。
 3. 完全重启 Obsidian，使用扩展剪藏 B 站或 YouTube 视频；在保存笔记的阅读视图中播放顶部视频，点击字幕时间即可跳转。
 
@@ -84,6 +84,7 @@
 - 若笔记内没有互动字幕，确认已启用配套插件、笔记包含带时间戳的字幕，并切换到阅读视图。若播放器提示未准备好，等待视频加载后再试。
 - YouTube 应进入弹窗的“**YouTube 视频**”专用模式。若仍显示“网页裁剪”，或保存的笔记只有 `## 简介摘录` 而没有带时间的 `## 字幕`，先核对扩展版本与加载目录，再刷新 YouTube 页面并展开“显示文字记录”。
 - YouTube 弹窗显示“已遍历文字记录”表示扩展已滚动到记录末尾；若显示“可能不完整”，请确认 YouTube 的文字记录已展开，再点击弹窗“刷新”。
+- 若弹窗在文字记录已展开时仍显示 0 条，请复制“文字记录”栏的诊断计数反馈；若显示“读取连接中断”，刷新 YouTube 网页、重新打开文字记录，再点击扩展中的“刷新”。
 - 字幕高亮约每 0.75 秒更新。B 站和 YouTube 的嵌入许可、字幕可见性或页面结构变动会影响相应能力。
 
 ## 接下来的方向

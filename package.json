@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-clipping-anything",
-	"version": "1.1.4",
+	"version": "1.1.5",
 	"description": "Web, Bilibili and YouTube clipper for Obsidian.",
 	"bin": {
 		"obsidian-clipper": "./dist/cli.cjs"

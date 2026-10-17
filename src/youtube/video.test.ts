@@ -119,12 +119,41 @@ describe('YouTube visible snapshot', () => {
     expect(panel.scrollTop).toBe(100);
   });
 
+  it('returns an explicitly incomplete result before a long transcript traversal monopolizes the message channel', async () => {
+    const video = loadVideo();
+    const document = page(`<ytd-engagement-panel-section-list-renderer target-id="engagement-panel-searchable-transcript" visibility="ENGAGEMENT_PANEL_VISIBILITY_EXPANDED"><div id="segments-container">
+      <ytd-transcript-segment-renderer><span class="segment-timestamp">0:01</span><span class="segment-text">First line</span></ytd-transcript-segment-renderer>
+    </div></ytd-engagement-panel-section-list-renderer>`);
+    const panel = document.querySelector('ytd-engagement-panel-section-list-renderer') as HTMLElement;
+    let position = 0;
+    Object.defineProperties(panel, {
+      clientHeight: { get: () => 100 }, scrollHeight: { get: () => 100000 },
+      scrollTop: { get: () => position, set: (value: number) => { position = value; } },
+    });
+    let elapsed = 0;
+    let waits = 0;
+    const result = await video.collect(document, url, 'M7lc1UVf-VE', {
+      waitForRender: async () => { elapsed += 400; waits++; }, now: () => elapsed, maxDurationMs: 25000,
+    });
+    expect(waits).toBeLessThan(80);
+    expect(result.transcriptState).toBe('possibly-incomplete');
+    expect(result.cues[0].text).toBe('First line');
+    expect(panel.scrollTop).toBe(0);
+  });
+
   it('distinguishes unopened from an open but empty transcript and rejects a stale ID', () => {
     const video = loadVideo();
     expect(video.snapshot(page(), url).transcriptState).toBe('unopened');
     expect(video.snapshot(page(), 'https://www.youtube.com/shorts/_i92TmBGF8k').url).toBe('https://www.youtube.com/shorts/_i92TmBGF8k');
     expect(video.snapshot(page('<ytd-engagement-panel-section-list-renderer target-id="engagement-panel-searchable-transcript" visibility="ENGAGEMENT_PANEL_VISIBILITY_EXPANDED"><div id="segments-container"></div></ytd-engagement-panel-section-list-renderer>'), url).transcriptState).toBe('open-empty');
     expect(() => video.snapshot(page(), url, 'abcdefghijk')).toThrow(/视频/);
+  });
+  it('reports an expanded transcript whose segment container no longer matches the selector', () => {
+    const video = loadVideo();
+    const document = page('<ytd-engagement-panel-section-list-renderer target-id="engagement-panel-searchable-transcript" visibility="ENGAGEMENT_PANEL_VISIBILITY_EXPANDED"><div class="new-transcript-layout"><span class="new-timestamp">0:01</span></div></ytd-engagement-panel-section-list-renderer>');
+    const result = video.snapshot(document, url);
+    expect(result.transcriptState).toBe('open-unrecognized');
+    expect(JSON.stringify(result.transcriptDiagnostics)).toBe(JSON.stringify({ panel: 1, expanded: 1, container: 0, rows: 0, timestamps: 1 }));
   });
   it('binds Shorts metadata to the active reel and rejects a transitioning reel', () => {
     const video = loadVideo();
