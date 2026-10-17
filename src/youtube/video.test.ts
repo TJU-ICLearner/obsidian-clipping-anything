@@ -50,6 +50,75 @@ describe('YouTube visible snapshot', () => {
     expect(JSON.stringify(video.snapshot(document, url).cues)).toBe(JSON.stringify([{ start: 3723, text: 'Alternate' }]));
   });
 
+  it('collects virtualized transcript rows from top to bottom and restores the reader position', async () => {
+    const video = loadVideo();
+    const document = page(`<ytd-engagement-panel-section-list-renderer target-id="engagement-panel-searchable-transcript" visibility="ENGAGEMENT_PANEL_VISIBILITY_EXPANDED"><div id="segments-container"></div></ytd-engagement-panel-section-list-renderer>`);
+    const panel = document.querySelector('ytd-engagement-panel-section-list-renderer') as HTMLElement;
+    const container = panel.querySelector('#segments-container') as HTMLElement;
+    const lines = ['First', 'Second', 'Third'];
+    let position = 100;
+    const render = () => {
+      const index = Math.min(2, Math.round(position / 100));
+      container.innerHTML = `<ytd-transcript-segment-renderer><span class="segment-timestamp">0:0${index}</span><span class="segment-text">${lines[index]}</span></ytd-transcript-segment-renderer>`;
+    };
+    Object.defineProperties(panel, {
+      clientHeight: { get: () => 100 }, scrollHeight: { get: () => 300 },
+      scrollTop: { get: () => position, set: (value: number) => { position = Math.max(0, Math.min(200, value)); render(); } },
+    });
+    render();
+    expect(video.snapshot(document, url).cues.length).toBe(1);
+    const result = await video.collect(document, url, 'M7lc1UVf-VE', { waitForRender: async () => {}, maxSteps: 10 });
+    expect(JSON.stringify(result.cues)).toBe(JSON.stringify([
+      { start: 0, text: 'First' }, { start: 1, text: 'Second' }, { start: 2, text: 'Third' },
+    ]));
+    expect(result.transcriptState).toBe('complete');
+    expect(panel.scrollTop).toBe(100);
+  });
+
+  it('collects rows when the transcript uses the page scrollbar', async () => {
+    const video = loadVideo();
+    const document = page(`<ytd-engagement-panel-section-list-renderer target-id="engagement-panel-searchable-transcript" visibility="ENGAGEMENT_PANEL_VISIBILITY_EXPANDED"><div id="segments-container"></div></ytd-engagement-panel-section-list-renderer>`);
+    const container = document.querySelector('#segments-container') as HTMLElement;
+    const pageScroller = document.documentElement;
+    let position = 100;
+    const render = () => {
+      const index = Math.min(2, Math.round(position / 100));
+      container.innerHTML = `<ytd-transcript-segment-renderer><span class="segment-timestamp">0:0${index}</span><span class="segment-text">Line ${index}</span></ytd-transcript-segment-renderer>`;
+    };
+    Object.defineProperties(pageScroller, {
+      clientHeight: { get: () => 100 }, scrollHeight: { get: () => 300 },
+      scrollTop: { get: () => position, set: (value: number) => { position = Math.max(0, Math.min(200, value)); render(); } },
+    });
+    render();
+    const result = await video.collect(document, url, 'M7lc1UVf-VE', { waitForRender: async () => {}, maxSteps: 10 });
+    expect(result.cues.map((cue: any) => cue.text).join(',')).toBe('Line 0,Line 1,Line 2');
+    expect(pageScroller.scrollTop).toBe(100);
+  });
+
+  it('skips a tall but non-scrollable wrapper to use the actual transcript scroller', async () => {
+    const video = loadVideo();
+    const document = page(`<ytd-engagement-panel-section-list-renderer target-id="engagement-panel-searchable-transcript" visibility="ENGAGEMENT_PANEL_VISIBILITY_EXPANDED"><div id="segments-container"></div></ytd-engagement-panel-section-list-renderer>`);
+    const panel = document.querySelector('ytd-engagement-panel-section-list-renderer') as HTMLElement;
+    const container = panel.querySelector('#segments-container') as HTMLElement;
+    Object.defineProperties(container, {
+      clientHeight: { get: () => 100 }, scrollHeight: { get: () => 300 },
+      scrollTop: { get: () => 0, set: () => {} },
+    });
+    let position = 100;
+    const render = () => {
+      const index = Math.min(2, Math.round(position / 100));
+      container.innerHTML = `<ytd-transcript-segment-renderer><span class="segment-timestamp">0:0${index}</span><span class="segment-text">Line ${index}</span></ytd-transcript-segment-renderer>`;
+    };
+    Object.defineProperties(panel, {
+      clientHeight: { get: () => 100 }, scrollHeight: { get: () => 300 },
+      scrollTop: { get: () => position, set: (value: number) => { position = Math.max(0, Math.min(200, value)); render(); } },
+    });
+    render();
+    const result = await video.collect(document, url, 'M7lc1UVf-VE', { waitForRender: async () => {}, maxSteps: 10 });
+    expect(result.cues.map((cue: any) => cue.text).join(',')).toBe('Line 0,Line 1,Line 2');
+    expect(panel.scrollTop).toBe(100);
+  });
+
   it('distinguishes unopened from an open but empty transcript and rejects a stale ID', () => {
     const video = loadVideo();
     expect(video.snapshot(page(), url).transcriptState).toBe('unopened');
@@ -77,18 +146,22 @@ describe('YouTube visible snapshot', () => {
     expect(() => video.snapshot(document, shortUrl)).toThrow(/切换|匹配/);
   });
 
-  it('content listener checks active URL against requested ID at response time', () => {
+  it('content listener keeps the message channel open while collecting and checks the active ID', async () => {
     const video = loadVideo();
     let listener: any;
     const chrome = { runtime: { onMessage: { addListener(fn: any) { listener = fn; } } } };
     const context: any = { chrome, location: { href: url }, document: page(), OcaYouTubeVideo: video };
     context.globalThis = context;
     vm.runInNewContext(readFileSync(new URL('./content.js', import.meta.url), 'utf8'), context);
-    let reply: any;
-    listener({ type: 'oca-youtube-snapshot', expectedVideoId: 'abcdefghijk' }, {}, (value: any) => reply = value);
-    expect(reply.ok).toBe(false);
+    let firstReply!: (value: any) => void;
+    const first = new Promise<any>(resolve => { firstReply = resolve; });
+    expect(listener({ type: 'oca-youtube-snapshot', expectedVideoId: 'abcdefghijk' }, {}, firstReply)).toBe(true);
+    expect((await first).ok).toBe(false);
     context.location.href = 'https://www.youtube.com/watch?v=abcdefghijk';
-    listener({ type: 'oca-youtube-snapshot', expectedVideoId: 'abcdefghijk' }, {}, (value: any) => reply = value);
+    let secondReply!: (value: any) => void;
+    const second = new Promise<any>(resolve => { secondReply = resolve; });
+    expect(listener({ type: 'oca-youtube-snapshot', expectedVideoId: 'abcdefghijk' }, {}, secondReply)).toBe(true);
+    const reply = await second;
     expect(reply.ok).toBe(true);
     expect(reply.payload.videoId).toBe('abcdefghijk');
   });

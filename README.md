@@ -4,7 +4,7 @@
 
 这个项目始于把 [Obsidian Web Clipper](https://github.com/obsidianmd/obsidian-clipper) 的网页剪藏能力和 [Bilibili Obsidian Clipper](https://github.com/haixiong1997/Bilibili-Obsidian-Clipper) 的视频字幕能力放进同一个扩展。长期目标是用一致的入口剪藏不同平台的文章、帖子、视频与字幕，并让保存后的媒体笔记在 Obsidian 中保持可阅读、可播放、可定位到具体片段。
 
-本分支的 YouTube 交付候选版本是 **Chrome 扩展 1.1.0 + Obsidian 配套插件 1.3.0**。此前的公开稳定版仍可从 Releases 下载。项目是独立社区整合版本，并非 Obsidian 官方扩展。
+本分支的 YouTube 交付候选版本是 **Chrome 扩展 1.1.1 + Obsidian 配套插件 1.3.0**。此前的公开稳定版仍可从 Releases 下载。项目是独立社区整合版本，并非 Obsidian 官方扩展。
 
 ## 平台支持状态
 
@@ -41,7 +41,7 @@
 ### 3. YouTube 视频与 Shorts 剪藏
 
 - 普通 `youtube.com/watch?v=...` 视频和标准 `youtube.com/shorts/...` 链接进入 YouTube 专用模式；可随时切换到“网页剪藏”，再从网页模式返回。
-- 只读取**当前页面已显示**的文字记录。普通视频先在 YouTube 打开“显示文字记录”，再点击扩展弹窗的“刷新”；不会从隐藏接口下载字幕。若页面只渲染一部分，弹窗显示已抓取条数及“可能不完整”。
+- 只读取 YouTube 页面**已打开的文字记录**。普通视频先打开“显示文字记录”，再点击扩展弹窗的“刷新”；扩展会依次滚动文字记录、收集逐段渲染的字幕，并恢复原滚动位置。不会从隐藏接口下载字幕；若未能遍历到末尾，弹窗显示已抓取条数及“可能不完整”。
 - 没有可见文字记录时，仍可保存标题、频道、来源与笔记内播放器；`## 字幕` 明确提示未读取到字幕。Shorts 的文字记录可见性取决于 YouTube 页面。
 - 弹窗可预览完整 Markdown、选择与网页及 B 站模式共用的仓库、指定独立目标文件夹。每次剪藏生成新文件名；保存前写入系统剪贴板，再发出 Obsidian URI。弹窗只提示已交给 Obsidian，需到目标仓库核对笔记。
 - 配套插件在**阅读视图**把 YouTube 嵌入视频固定于笔记开头，点击字幕时间控制这一播放器；播放进度反向高亮字幕。滚动离开视频后仍保持同一会话。部分视频可能禁止嵌入，此时插件会显示错误状态。
@@ -68,7 +68,7 @@
 
 本分支的候选版请先按下方“从源码构建与验证”生成 `builds/` 中的两个 ZIP；[Releases](https://github.com/TJU-ICLearner/obsidian-clipping-anything/releases/latest) 目前提供已发布的稳定版。安装候选版时：
 
-1. **Chrome 扩展**：解压 `obsidian-clipping-anything-1.1.0-chrome.zip` 到固定目录。打开 `chrome://extensions/`，开启“开发者模式”，选择“加载已解压的扩展程序”，选中解压后**直接包含 `manifest.json` 的目录**。
+1. **Chrome 扩展**：解压 `obsidian-clipping-anything-1.1.1-chrome.zip` 到固定目录。打开 `chrome://extensions/`，开启“开发者模式”，选择“加载已解压的扩展程序”，选中解压后**直接包含 `manifest.json` 的目录**。
 2. **Obsidian 配套插件**：解压 `obsidian-clipping-anything-player-1.3.0.zip` 到目标仓库的 `.obsidian/plugins/`。最终应存在 `.obsidian/plugins/obsidian-clipper-anything-player/manifest.json`，同目录还有 `main.js`、`styles.css` 和 `youtube-player.js`。在 Obsidian 的“设置 → 第三方插件”中启用 **Obsidian Clipping Anything Player**。
 3. 完全重启 Obsidian，使用扩展剪藏 B 站或 YouTube 视频；在保存笔记的阅读视图中播放顶部视频，点击字幕时间即可跳转。
 
@@ -80,6 +80,7 @@
 - “REST 直写”需要在**目标仓库**启用 Local REST API，填入本地地址和 API Key，并测试连接。`Failed to fetch` 通常表示该服务不可访问；可改用默认的 Obsidian URI 保存。
 - 若同一 B 站页面出现两套字幕按钮，可停用旧的 Bilibili 扩展。新扩展不会自动迁移旧扩展的设置。
 - 若笔记内没有互动字幕，确认已启用配套插件、笔记包含带时间戳的字幕，并切换到阅读视图。若播放器提示未准备好，等待视频加载后再试。
+- YouTube 弹窗显示“已遍历文字记录”表示扩展已滚动到记录末尾；若显示“可能不完整”，请确认 YouTube 的文字记录已展开，再点击弹窗“刷新”。
 - 字幕高亮约每 0.75 秒更新。B 站和 YouTube 的嵌入许可、字幕可见性或页面结构变动会影响相应能力。
 
 ## 接下来的方向

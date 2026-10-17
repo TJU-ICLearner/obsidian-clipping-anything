@@ -45,6 +45,7 @@ describe('YouTube popup route and actions', () => {
     expect(popup.transcriptSummary({ transcriptState: 'unopened', cues: [] })).toContain('在 YouTube 打开文字记录后，点击这里的刷新');
     expect(popup.transcriptSummary({ transcriptState: 'possibly-incomplete', cues: [{ start: 1, text: 'a' }] })).toContain('1 条');
     expect(popup.transcriptSummary({ transcriptState: 'possibly-incomplete', cues: [{ start: 1, text: 'a' }] })).toContain('可能不完整');
+    expect(popup.transcriptSummary({ transcriptState: 'complete', cues: [{ start: 1, text: 'a' }] })).toContain('已遍历');
     expect(popup.canSave({ videoId: 'M7lc1UVf-VE', cues: [] })).toBe(true);
   });
   it('has reciprocal web-mode link and independent YouTube settings controls', () => {

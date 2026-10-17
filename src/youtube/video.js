@@ -103,5 +103,77 @@
     };
   }
 
-  globalThis.OcaYouTubeVideo = { videoIdFromUrl, secondsFromStamp, snapshot };
+  function canScroll(element) {
+    if (!element || element.clientHeight <= 0 || element.scrollHeight <= element.clientHeight + 2) return false;
+    const original = element.scrollTop;
+    const target = original < element.scrollHeight - element.clientHeight - 1 ? original + 1 : Math.max(0, original - 1);
+    element.scrollTop = target;
+    const moved = Math.abs(element.scrollTop - original) > 0.5;
+    element.scrollTop = original;
+    return moved;
+  }
+
+  function transcriptScroller(container, panel) {
+    for (let element = container; element && panel.contains(element); element = element.parentElement) {
+      if (canScroll(element)) return element;
+    }
+    return null;
+  }
+
+  function waitForRows(container) {
+    return new Promise(resolve => {
+      let quiet;
+      const finish = () => { observer.disconnect(); clearTimeout(quiet); clearTimeout(hard); resolve(); };
+      const observer = new MutationObserver(() => { clearTimeout(quiet); quiet = setTimeout(finish, 60); });
+      observer.observe(container, { childList: true, subtree: true, characterData: true });
+      const hard = setTimeout(finish, 400);
+    });
+  }
+
+  async function collect(document, value, expectedVideoId, options = {}) {
+    const currentUrl = options.getUrl || (() => value);
+    const first = snapshot(document, currentUrl(), expectedVideoId);
+    const panel = document.querySelector(PANEL);
+    const container = panel?.querySelector('#segments-container');
+    if (!container || first.transcriptState === 'unopened') return first;
+    const pageScroller = document.scrollingElement || document.documentElement;
+    const scroller = transcriptScroller(container, panel) || (canScroll(pageScroller) ? pageScroller : null);
+    if (!scroller) return first;
+    const originalPosition = scroller.scrollTop;
+    const cues = new Map();
+    const addVisible = () => {
+      const partial = snapshot(document, currentUrl(), expectedVideoId);
+      for (const cue of partial.cues) cues.set(`${cue.start}\u0000${cue.text}`, cue);
+    };
+    const wait = options.waitForRender || (() => waitForRows(container));
+    const move = async position => {
+      const rendered = wait();
+      scroller.scrollTop = position;
+      await rendered;
+    };
+    let complete = false;
+    let bottomChecks = 0;
+    try {
+      addVisible();
+      await move(0);
+      for (let step = 0; step < (options.maxSteps || 200); step++) {
+        addVisible();
+        const atBottom = scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 2;
+        if (atBottom) {
+          if (++bottomChecks >= 2) { complete = true; break; }
+          await wait();
+          continue;
+        }
+        bottomChecks = 0;
+        const before = scroller.scrollTop;
+        await move(Math.min(before + Math.max(1, Math.floor(scroller.clientHeight * 0.8)), scroller.scrollHeight));
+        if (scroller.scrollTop <= before) break;
+      }
+    } finally {
+      scroller.scrollTop = originalPosition;
+    }
+    return { ...first, cues: Array.from(cues.values()).sort((a, b) => a.start - b.start), transcriptState: complete ? 'complete' : 'possibly-incomplete' };
+  }
+
+  globalThis.OcaYouTubeVideo = { videoIdFromUrl, secondsFromStamp, snapshot, collect };
 })();

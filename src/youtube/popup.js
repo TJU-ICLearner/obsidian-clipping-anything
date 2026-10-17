@@ -18,6 +18,7 @@
     } catch { return false; }
   }
   function transcriptSummary(snapshot) {
+    if (snapshot.transcriptState === 'complete') return `已遍历文字记录，读取 ${snapshot.cues.length} 条字幕。`;
     if (snapshot.transcriptState === 'possibly-incomplete') return `已读取 ${snapshot.cues.length} 条页面文字记录；页面可能只渲染了一部分，结果可能不完整。`;
     if (snapshot.transcriptState === 'open-empty') return '文字记录已打开，但当前没有可读取的字幕；可以仅保存视频信息。';
     return '在 YouTube 打开文字记录后，点击这里的刷新。当前可以仅保存视频信息。';
