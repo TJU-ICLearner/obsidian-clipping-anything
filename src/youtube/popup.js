@@ -84,10 +84,22 @@
     return Array.from(cues.values()).sort((a, b) => a.start - b.start);
   }
   async function webTranscript(tabId, videoId) {
+    const request = { action: 'sendMessageToTab', tabId, message: { action: 'getPageContent' } };
+    const extract = async () => {
+      const response = await chrome.runtime.sendMessage(request);
+      if (!response?.content) throw new Error(response?.error || '网页裁剪未返回内容');
+      const cues = parseWebTranscript(response.content, videoId);
+      return { cues, diagnostic: cues.length ? '' : '已返回网页内容，但没有识别到当前视频的带时间字幕' };
+    };
     try {
-      const response = await chrome.runtime.sendMessage({ action: 'sendMessageToTab', tabId, message: { action: 'getPageContent' } });
-      return parseWebTranscript(response?.content, videoId);
-    } catch { return []; }
+      return await extract();
+    } catch {
+      try {
+        const injected = await chrome.runtime.sendMessage({ action: 'forceInjectContentScript', tabId });
+        if (injected?.success === false) throw new Error(injected.error || '内容脚本重新连接失败');
+        return await extract();
+      } catch (error) { return { cues: [], diagnostic: `连接失败：${String(error?.message || error).slice(0, 140)}` }; }
+    }
   }
   globalThis.OcaYouTubePopup = { validateSnapshotTab, transcriptSummary, readError, canSave, parseWebTranscript };
 
@@ -102,7 +114,7 @@
     el.title.textContent = captured.title || '未命名视频';
     el.channel.textContent = captured.channel || '频道未知';
     el.source.textContent = captured.url;
-    el['transcript-status'].textContent = transcriptSummary(captured);
+    el['transcript-status'].textContent = transcriptSummary(captured) + (captured.webTranscriptDiagnostic ? ` 网页裁剪回退：${captured.webTranscriptDiagnostic}。` : '');
     el['open-watch'].hidden = !shortsWatchUrl(captured);
     el['transcript-preview'].textContent = captured.cues.length
       ? captured.cues.slice(0, 30).map(cue => `${globalThis.OcaYouTubeNote.stamp(cue.start)}  ${cue.text}`).join('\n')
@@ -139,8 +151,10 @@
       if (!await validateSnapshotTab(chrome.tabs, { tabId: tab.id, videoId: id })) throw new Error('视频页面已切换，请重新刷新预览。');
       let snapshot = response.payload;
       if (!snapshot.cues?.length) {
-        const cues = await webTranscript(tab.id, id);
-        if (cues.length) snapshot = { ...snapshot, cues, transcriptState: 'web-fallback' };
+        const web = await webTranscript(tab.id, id);
+        snapshot = web.cues.length
+          ? { ...snapshot, cues: web.cues, transcriptState: 'web-fallback' }
+          : { ...snapshot, webTranscriptDiagnostic: web.diagnostic };
       }
       if (!await validateSnapshotTab(chrome.tabs, { tabId: tab.id, videoId: id })) throw new Error('视频页面已切换，请重新刷新预览。');
       captured = snapshot; capturedTabId = tab.id;

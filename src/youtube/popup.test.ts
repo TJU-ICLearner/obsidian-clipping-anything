@@ -141,6 +141,52 @@ describe('YouTube popup route and actions', () => {
     expect((document.getElementById('markdown-preview') as HTMLTextAreaElement).value).toContain('`00:54` 先说结论');
     expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ action: 'sendMessageToTab', tabId: 7, message: { action: 'getPageContent' } });
   });
+  it('reinjects the shared web collector when its first extraction request fails', async () => {
+    const html = readFileSync(new URL('./popup.html', import.meta.url), 'utf8').replace(/<script[^>]*><\/script>/g, '');
+    const dom = new JSDOM(html, { url: 'chrome-extension://test/youtube/popup.html' });
+    const document = dom.window.document;
+    const pageUrl = 'https://www.youtube.com/watch?v=fwdzsY9KWKk';
+    const snapshot = { videoId: 'fwdzsY9KWKk', title: 'AI Agent', channel: '李厂长来了', url: pageUrl,
+      description: '', chapters: [], cues: [], transcriptState: 'open-empty' };
+    const webHtml = '<iframe src="https://www.youtube.com/embed/fwdzsY9KWKk"></iframe><div class="youtube transcript">' +
+      '<p class="transcript-segment"><strong><span class="timestamp" data-timestamp="54">0:54</span></strong> · 先说结论</p></div>';
+    const runtimeMessage = vi.fn().mockResolvedValueOnce({ success: false, error: 'Extension context invalidated' })
+      .mockResolvedValueOnce({ success: true })
+      .mockResolvedValueOnce({ content: webHtml });
+    const chrome = {
+      tabs: { query: vi.fn(async () => [{ id: 7, url: pageUrl }]), sendMessage: vi.fn(async () => ({ ok: true, payload: snapshot })) },
+      storage: { sync: { get: vi.fn(async () => ({ vaults: [] })), set: vi.fn(async () => {}) }, local: { get: vi.fn(async () => ({})), set: vi.fn(async () => {}) } },
+      runtime: { sendMessage: runtimeMessage, openOptionsPage: vi.fn() },
+    };
+    const context: any = { URL, document, DOMParser: dom.window.DOMParser, chrome, navigator: dom.window.navigator, crypto: dom.window.crypto, TextEncoder };
+    context.globalThis = context;
+    vm.runInNewContext(readFileSync(new URL('./note.js', import.meta.url), 'utf8'), context);
+    vm.runInNewContext(readFileSync(new URL('./popup.js', import.meta.url), 'utf8'), context);
+    await vi.waitFor(() => expect(document.getElementById('transcript-status')?.textContent).toContain('1 条带时间字幕'));
+    expect(runtimeMessage).toHaveBeenNthCalledWith(2, { action: 'forceInjectContentScript', tabId: 7 });
+    expect(runtimeMessage).toHaveBeenCalledTimes(3);
+  });
+  it('shows the shared collector failure instead of silently reporting zero subtitles', async () => {
+    const html = readFileSync(new URL('./popup.html', import.meta.url), 'utf8').replace(/<script[^>]*><\/script>/g, '');
+    const dom = new JSDOM(html, { url: 'chrome-extension://test/youtube/popup.html' });
+    const document = dom.window.document;
+    const pageUrl = 'https://www.youtube.com/watch?v=fwdzsY9KWKk';
+    const snapshot = { videoId: 'fwdzsY9KWKk', title: 'AI Agent', channel: '', url: pageUrl,
+      description: '', chapters: [], cues: [], transcriptState: 'open-empty' };
+    const runtimeMessage = vi.fn().mockRejectedValueOnce(new Error('first extraction failed'))
+      .mockResolvedValueOnce({ success: false, error: 'Site access blocked' });
+    const chrome = {
+      tabs: { query: vi.fn(async () => [{ id: 7, url: pageUrl }]), sendMessage: vi.fn(async () => ({ ok: true, payload: snapshot })) },
+      storage: { sync: { get: vi.fn(async () => ({ vaults: [] })), set: vi.fn(async () => {}) }, local: { get: vi.fn(async () => ({})), set: vi.fn(async () => {}) } },
+      runtime: { sendMessage: runtimeMessage, openOptionsPage: vi.fn() },
+    };
+    const context: any = { URL, document, DOMParser: dom.window.DOMParser, chrome, navigator: dom.window.navigator, crypto: dom.window.crypto, TextEncoder };
+    context.globalThis = context;
+    vm.runInNewContext(readFileSync(new URL('./note.js', import.meta.url), 'utf8'), context);
+    vm.runInNewContext(readFileSync(new URL('./popup.js', import.meta.url), 'utf8'), context);
+    await vi.waitFor(() => expect(document.getElementById('transcript-status')?.textContent).toContain('网页裁剪回退：连接失败：Site access blocked'));
+    expect(runtimeMessage).toHaveBeenCalledTimes(2);
+  });
   it('converts a closed message channel into a recovery instruction', () => {
     const popup = loadPopup();
     expect(popup.readError(new Error('A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received'))).toContain('刷新 YouTube 网页');
