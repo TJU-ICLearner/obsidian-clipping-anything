@@ -21,6 +21,6 @@ chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
   if (!youtubeModeLink) return;
   try {
     const parsed = new URL(tabs?.[0]?.url || "");
-    if (parsed.protocol === "https:" && parsed.hostname === "www.youtube.com" && parsed.pathname === "/watch" && parsed.searchParams.getAll("v").length === 1 && /^[A-Za-z0-9_-]{11}$/.test(parsed.searchParams.get("v") || "")) youtubeModeLink.style.display = "inline";
+    if (parsed.protocol === "https:" && parsed.hostname === "www.youtube.com" && ((parsed.pathname === "/watch" && parsed.searchParams.getAll("v").length === 1 && /^[A-Za-z0-9_-]{11}$/.test(parsed.searchParams.get("v") || "")) || /^\/shorts\/[A-Za-z0-9_-]{11}\/?$/.test(parsed.pathname))) youtubeModeLink.style.display = "inline";
   } catch {}
 });

@@ -2,8 +2,8 @@
 	"manifest_version": 3,
 	"default_locale": "en",
 	"name": "Obsidian Clipping Anything",
-	"version": "1.0.6",
-	"description": "Save web pages and Bilibili subtitles to Obsidian.",
+	"version": "1.1.0",
+	"description": "Save web pages, Bilibili and YouTube videos to Obsidian.",
 	"permissions": [
 		"activeTab",
 		"clipboardWrite",
@@ -64,7 +64,7 @@
 		},
 		{
 			"matches": [
-				"https://www.youtube.com/watch*"
+				"https://www.youtube.com/watch*", "https://www.youtube.com/shorts/*"
 			],
 			"js": [
 				"youtube/video.js",

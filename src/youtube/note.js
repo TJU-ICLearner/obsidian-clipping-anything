@@ -33,6 +33,13 @@
     if (Number.isNaN(now.getTime())) throw new Error('剪藏时间无效。');
     const iso = now.toISOString();
     const title = oneLine(snapshot.title) || `YouTube ${id}`;
+    let source = `https://www.youtube.com/watch?v=${id}`;
+    if (snapshot.url) {
+      const raw = new URL(snapshot.url);
+      if (raw.protocol !== 'https:' || raw.hostname !== 'www.youtube.com') throw new Error('视频来源链接无效。');
+      if (raw.pathname === `/shorts/${id}` || raw.pathname === `/shorts/${id}/`) source = `https://www.youtube.com/shorts/${id}`;
+      else if (raw.pathname !== '/watch' || raw.searchParams.getAll('v').length !== 1 || raw.searchParams.get('v') !== id) throw new Error('视频来源链接与 ID 不匹配。');
+    }
     const suffix = randomSuffix(options.randomBytes);
     const filepath = `${folder}/${safeTitle(title)} ${id} ${iso.replace(/[:.]/g, '-')}-${suffix}.md`;
     const lines = [
@@ -40,12 +47,12 @@
       'clip_platform: youtube',
       `youtube_id: ${yaml(id)}`,
       `title: ${yaml(title)}`,
-      `source: ${yaml(`https://www.youtube.com/watch?v=${id}`)}`,
+      `source: ${yaml(source)}`,
       `clipped_at: ${yaml(iso)}`,
       '---', '',
       `# ${md(title)}`, '',
       `**频道：** ${md(snapshot.channel || '未知')}`, '',
-      `**来源：** https://www.youtube.com/watch?v=${id}`, '',
+      `**来源：** ${source}`, '',
       `<iframe src="https://www.youtube.com/embed/${id}?enablejsapi=1" title="YouTube video" width="100%" height="360" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>`,
     ];
     if (oneLine(snapshot.description)) lines.push('', '## 简介', '', md(snapshot.description));

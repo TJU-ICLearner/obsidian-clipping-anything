@@ -92,3 +92,7 @@ No blocking findings remain. The 1 open minor finding(s) below are recorded for 
 
 > The unchanged decision still says to open the transcript and 'refresh' without identifying the popup Refresh control or a YouTube page reload.
 <!-- gstack:office-hours:concerns:end -->
+
+## 2026-10-17 补充：Shorts 测试链接
+
+用户在实施期间指定 `https://www.youtube.com/shorts/_i92TmBGF8k` 用于后续测试。专用模式因此扩展为识别标准 `/shorts/<11 位 ID>` 链接，保存原 Shorts 来源，并用同一 ID 创建笔记内嵌播放器。字幕策略不变：只采集页面实际显示的文字记录；Shorts 页面没有可见文字记录时保存视频信息，并明确显示字幕缺失。该补充覆盖上文“Shorts 继续走网页模式”的旧范围描述。

@@ -3,9 +3,12 @@
   const videoIdFromUrl = value => {
     try {
       const url = new URL(value);
-      if (url.protocol !== 'https:' || url.hostname !== 'www.youtube.com' || url.pathname !== '/watch') return null;
-      const ids = url.searchParams.getAll('v');
-      return ids.length === 1 && /^[A-Za-z0-9_-]{11}$/.test(ids[0]) ? ids[0] : null;
+      if (url.protocol !== 'https:' || url.hostname !== 'www.youtube.com') return null;
+      if (url.pathname === '/watch') {
+        const ids = url.searchParams.getAll('v');
+        return ids.length === 1 && /^[A-Za-z0-9_-]{11}$/.test(ids[0]) ? ids[0] : null;
+      }
+      return url.pathname.match(/^\/shorts\/([A-Za-z0-9_-]{11})\/?$/)?.[1] || null;
     } catch { return null; }
   };
   async function validateSnapshotTab(tabs, { tabId, videoId }) {

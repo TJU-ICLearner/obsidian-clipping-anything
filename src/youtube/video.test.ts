@@ -13,11 +13,12 @@ function loadVideo() {
 function page(body = '') { return new JSDOM(`<!doctype html><title>Video title - YouTube</title><body>${body}</body>`).window.document; }
 
 describe('YouTube visible snapshot', () => {
-  it('accepts only normal watch URLs with one valid eleven-character ID', () => {
+  it('accepts only standard watch and Shorts URLs with a valid eleven-character ID', () => {
     const video = loadVideo();
     expect(video.videoIdFromUrl(url)).toBe('M7lc1UVf-VE');
+    expect(video.videoIdFromUrl('https://www.youtube.com/shorts/_i92TmBGF8k')).toBe('_i92TmBGF8k');
     for (const invalid of [
-      'https://www.youtube.com/shorts/M7lc1UVf-VE',
+      'https://www.youtube.com/shorts/bad',
       'https://music.youtube.com/watch?v=M7lc1UVf-VE',
       'https://youtu.be/M7lc1UVf-VE',
       'https://www.youtube.com/watch?v=bad',
@@ -52,6 +53,7 @@ describe('YouTube visible snapshot', () => {
   it('distinguishes unopened from an open but empty transcript and rejects a stale ID', () => {
     const video = loadVideo();
     expect(video.snapshot(page(), url).transcriptState).toBe('unopened');
+    expect(video.snapshot(page(), 'https://www.youtube.com/shorts/_i92TmBGF8k').url).toBe('https://www.youtube.com/shorts/_i92TmBGF8k');
     expect(video.snapshot(page('<ytd-engagement-panel-section-list-renderer target-id="engagement-panel-searchable-transcript" visibility="ENGAGEMENT_PANEL_VISIBILITY_EXPANDED"><div id="segments-container"></div></ytd-engagement-panel-section-list-renderer>'), url).transcriptState).toBe('open-empty');
     expect(() => video.snapshot(page(), url, 'abcdefghijk')).toThrow(/视频/);
   });

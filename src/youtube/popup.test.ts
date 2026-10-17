@@ -15,16 +15,19 @@ function routed(url: string) {
   return route;
 }
 describe('YouTube popup route and actions', () => {
-  it('routes only a standard YouTube watch page to dedicated popup', () => {
+  it('routes standard YouTube watch and Shorts pages to the dedicated popup', () => {
     expect(routed(watch)).toBe('youtube/popup.html');
-    expect(routed('https://www.youtube.com/shorts/M7lc1UVf-VE')).toBe('popup.html');
+    expect(routed('https://www.youtube.com/shorts/_i92TmBGF8k')).toBe('youtube/popup.html');
     expect(routed('https://www.youtube.com/watch?v=bad')).toBe('popup.html');
+    expect(routed('https://www.youtube.com/shorts/bad')).toBe('popup.html');
     expect(routed('https://www.bilibili.com/video/BV1x')).toBe('bilibili/popup.html');
   });
   it('validates the same active tab and video before copy or save', async () => {
     const popup = loadPopup();
     const tabs = { query: vi.fn(async () => [{ id: 7, url: watch }]), get: vi.fn(async () => ({ id: 7, url: watch })) };
     expect(await popup.validateSnapshotTab(tabs, { tabId: 7, videoId: 'M7lc1UVf-VE' })).toBe(true);
+    tabs.query.mockResolvedValue([{ id: 7, url: 'https://www.youtube.com/shorts/_i92TmBGF8k' }]);
+    expect(await popup.validateSnapshotTab(tabs, { tabId: 7, videoId: '_i92TmBGF8k' })).toBe(true);
     tabs.query.mockResolvedValue([{ id: 8, url: watch }]);
     expect(await popup.validateSnapshotTab(tabs, { tabId: 7, videoId: 'M7lc1UVf-VE' })).toBe(false);
     tabs.query.mockResolvedValue([{ id: 7, url: 'https://www.youtube.com/watch?v=abcdefghijk' }]);

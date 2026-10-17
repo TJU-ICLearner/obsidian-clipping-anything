@@ -18,6 +18,9 @@ describe('YouTube note model', () => {
     expect(note.markdown.split('---').slice(2).join('---')).not.toContain('](https://evil.test)');
     expect(note.filepath).toMatch(/^Clippings\/YouTube\/.+M7lc1UVf-VE.+\.md$/);
     expect(note.filepath).not.toContain('..');
+    const short = load().build({ ...snapshot, videoId: '_i92TmBGF8k', url: 'https://www.youtube.com/shorts/_i92TmBGF8k', cues: [] }, { folder: 'Clippings/YouTube', now: new Date('2026-10-17T00:00:00Z'), randomBytes: () => new Uint8Array([1, 2, 3, 4]) });
+    expect(short.markdown).toContain('source: \"https://www.youtube.com/shorts/_i92TmBGF8k\"');
+    expect(short.markdown).toContain('https://www.youtube.com/embed/_i92TmBGF8k?enablejsapi=1');
   });
   it('makes repeated clips unique and emits an honest metadata-only subtitle section', () => {
     const model = load();

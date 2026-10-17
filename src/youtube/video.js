@@ -7,9 +7,13 @@
   function videoIdFromUrl(value) {
     try {
       const url = new URL(value);
-      if (url.protocol !== 'https:' || url.hostname !== 'www.youtube.com' || url.pathname !== '/watch') return null;
-      const ids = url.searchParams.getAll('v');
-      return ids.length === 1 && ID.test(ids[0]) ? ids[0] : null;
+      if (url.protocol !== 'https:' || url.hostname !== 'www.youtube.com') return null;
+      if (url.pathname === '/watch') {
+        const ids = url.searchParams.getAll('v');
+        return ids.length === 1 && ID.test(ids[0]) ? ids[0] : null;
+      }
+      const short = url.pathname.match(/^\/shorts\/([A-Za-z0-9_-]{11})\/?$/);
+      return short ? short[1] : null;
     } catch { return null; }
   }
 
@@ -29,7 +33,8 @@
     const videoId = videoIdFromUrl(value);
     if (!videoId) throw new Error('当前页面不是受支持的 YouTube 视频。');
     if (expectedVideoId && videoId !== expectedVideoId) throw new Error('当前视频已变化，请刷新预览。');
-    const watch = document.querySelector('ytd-watch-flexy[video-id]');
+    const isShort = new URL(value).pathname.startsWith('/shorts/');
+    const watch = !isShort && document.querySelector('ytd-watch-flexy[video-id]');
     if (watch && watch.getAttribute('video-id') !== videoId) throw new Error('视频页面正在切换，请稍后刷新。');
 
     const panel = document.querySelector(PANEL);
@@ -50,16 +55,16 @@
       }
     }
     const title = document.querySelector('meta[property="og:title"]')?.getAttribute('content')?.trim()
-      || textAt(document, 'ytd-watch-metadata h1, h1.ytd-watch-metadata')
+      || textAt(document, 'ytd-watch-metadata h1, h1.ytd-watch-metadata, yt-shorts-video-title-view-model h2, ytd-reel-video-renderer h2')
       || String(document.title || '').replace(/\s*-\s*YouTube$/, '').trim();
-    const channel = textAt(document, 'ytd-channel-name a, ytd-video-owner-renderer a')
+    const channel = textAt(document, 'ytd-channel-name a, ytd-video-owner-renderer a, ytd-reel-player-overlay-renderer #channel-name')
       || document.querySelector('link[itemprop="name"]')?.getAttribute('content')?.trim() || '';
     const description = textAt(document, '#description-inline-expander, #description ytd-text-inline-expander');
     return {
       videoId,
       title,
       channel,
-      url: `https://www.youtube.com/watch?v=${videoId}`,
+      url: isShort ? `https://www.youtube.com/shorts/${videoId}` : `https://www.youtube.com/watch?v=${videoId}`,
       description,
       chapters: [],
       cues,
