@@ -72,7 +72,7 @@
 2. **Obsidian 配套插件**：解压 `obsidian-clipping-anything-player-1.3.0.zip` 到目标仓库的 `.obsidian/plugins/`。最终应存在 `.obsidian/plugins/obsidian-clipper-anything-player/manifest.json`，同目录还有 `main.js`、`styles.css` 和 `youtube-player.js`。在 Obsidian 的“设置 → 第三方插件”中启用 **Obsidian Clipping Anything Player**。
 3. 完全重启 Obsidian，使用扩展剪藏 B 站或 YouTube 视频；在保存笔记的阅读视图中播放顶部视频，点击字幕时间即可跳转。
 
-更新解压版扩展后，在 `chrome://extensions/` 点“重新加载”，并刷新已打开的 B 站或 YouTube 页面。更新 Obsidian 插件后，请完全退出并重开 Obsidian。插件 ID 和文件夹名沿用 `obsidian-clipper-anything-player`，升级时覆盖原文件夹即可。**Chrome 安装包和 Obsidian 插件包不可互换加载。**
+更新解压版扩展时，先在 `chrome://extensions/` 确认该扩展显示的版本与安装包一致，并确认 Chrome 加载的是刚更新的目录；“重新加载”只会重载原目录中的文件。然后点“重新加载”，刷新已打开的 B 站或 YouTube 页面。更新 Obsidian 插件后，请完全退出并重开 Obsidian。插件 ID 和文件夹名沿用 `obsidian-clipper-anything-player`，升级时覆盖原文件夹即可。**Chrome 安装包和 Obsidian 插件包不可互换加载。**
 
 ## 使用与排查
 
@@ -80,6 +80,7 @@
 - “REST 直写”需要在**目标仓库**启用 Local REST API，填入本地地址和 API Key，并测试连接。`Failed to fetch` 通常表示该服务不可访问；可改用默认的 Obsidian URI 保存。
 - 若同一 B 站页面出现两套字幕按钮，可停用旧的 Bilibili 扩展。新扩展不会自动迁移旧扩展的设置。
 - 若笔记内没有互动字幕，确认已启用配套插件、笔记包含带时间戳的字幕，并切换到阅读视图。若播放器提示未准备好，等待视频加载后再试。
+- YouTube 应进入弹窗的“**YouTube 视频**”专用模式。若仍显示“网页裁剪”，或保存的笔记只有视频简介而没有 `clip_platform: youtube` 和 `## 字幕`，先核对扩展版本与加载目录，再刷新 YouTube 页面并展开“显示文字记录”。
 - YouTube 弹窗显示“已遍历文字记录”表示扩展已滚动到记录末尾；若显示“可能不完整”，请确认 YouTube 的文字记录已展开，再点击弹窗“刷新”。
 - 字幕高亮约每 0.75 秒更新。B 站和 YouTube 的嵌入许可、字幕可见性或页面结构变动会影响相应能力。
 
