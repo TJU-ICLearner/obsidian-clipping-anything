@@ -71,4 +71,22 @@ describe('YouTube reading view integration', () => {
     expect(s.document.querySelector('.oca-player-hint')!.textContent).toContain('不允许嵌入');
     s.plugin.disposePlayer(s.document.querySelector('.markdown-preview-view'));
   });
+  it('shows a video without seek controls or highlighting for an untimed transcript', async () => {
+    const markdown = `---\nclip_platform: youtube\nyoutube_id: "${ID}"\n---\n\n## 字幕\n\n由视频简介整理，未经音频校对，无时间轴。\n\n第一句。\n第二句。`;
+    const s = setup(markdown);
+    await s.plugin.onload();
+    s.getPostprocessor()(s.document.getElementById('block'), { sourcePath: 'clip.md' });
+    await vi.waitFor(() => expect(s.instances).toHaveLength(1));
+    const preview = s.document.querySelector('.markdown-preview-view')!;
+    expect(preview.querySelectorAll('.oca-cue')).toHaveLength(0);
+    expect(preview.querySelector('.oca-player-hint')?.textContent).toContain('无时间轴');
+    s.instances[0].callbacks.onReady();
+    expect(preview.querySelector('.oca-player-hint')?.textContent).toContain('不支持按字幕跳转或高亮');
+    const time = s.document.getElementById('time')!;
+    const click = new s.dom.window.MouseEvent('click', { bubbles: true, cancelable: true });
+    time.dispatchEvent(click);
+    expect(click.defaultPrevented).toBe(false);
+    expect(s.instances[0].seek).not.toHaveBeenCalled();
+    expect(time.classList.contains('oca-note-timestamp')).toBe(false);
+  });
 });

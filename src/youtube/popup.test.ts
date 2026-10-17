@@ -4,8 +4,9 @@ import { describe, expect, it, vi } from 'vitest';
 const { JSDOM } = require('jsdom');
 const watch = 'https://www.youtube.com/watch?v=M7lc1UVf-VE';
 function loadPopup() {
-  const scope: any = { URL, document: { getElementById: () => null } };
+  const scope: any = { URL, document: { getElementById: () => null }, TextEncoder, crypto: { getRandomValues: (array: Uint8Array) => array.fill(1) } };
   scope.globalThis = scope;
+  vm.runInNewContext(readFileSync(new URL('./note.js', import.meta.url), 'utf8'), scope);
   vm.runInNewContext(readFileSync(new URL('./popup.js', import.meta.url), 'utf8'), scope);
   return scope.OcaYouTubePopup;
 }
@@ -57,6 +58,18 @@ describe('YouTube popup route and actions', () => {
     });
     expect(status).toContain('只会保存视频信息');
     expect(status).toContain('普通播放页');
+  });
+  it('describes the untimed description fallback without promising seeking or highlighting', () => {
+    const popup = loadPopup();
+    const status = popup.transcriptSummary({
+      videoId: '_i92TmBGF8k', url: 'https://www.youtube.com/shorts/_i92TmBGF8k',
+      transcriptState: 'unopened', cues: [],
+      description: '第一句话介绍芯片的组成。第二句话解释处理器的作用。第三句话继续讲解不同部件的功能。第四句话介绍它们怎样协同工作。第五句话说明集成的好处。',
+    });
+    expect(status).toContain('无时间');
+    expect(status).not.toContain('只会保存视频信息');
+    expect(status).toContain('不能按字幕跳转或高亮');
+    expect(popup.transcriptSummary({ transcriptState: 'complete', cues: [], description: '第一句话介绍芯片的组成。第二句话解释处理器的作用。第三句话继续讲解不同部件的功能。第四句话介绍它们怎样协同工作。第五句话说明集成的好处。' })).toContain('无时间轴');
   });
   it('offers a same-tab watch-page button only for Shorts without visible cues', async () => {
     const short = 'https://www.youtube.com/shorts/_i92TmBGF8k';

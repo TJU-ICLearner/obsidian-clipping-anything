@@ -29,6 +29,35 @@
     return root.querySelector(selector)?.textContent?.trim() || '';
   }
 
+  function playerDescription(document, videoId) {
+    for (const script of document.querySelectorAll('script')) {
+      const source = script.textContent || '';
+      const marker = /\bytInitialPlayerResponse\s*=\s*\{/.exec(source);
+      if (!marker) continue;
+      const start = marker.index + marker[0].length - 1;
+      let depth = 0;
+      let quoted = false;
+      let escaped = false;
+      for (let index = start; index < source.length; index++) {
+        const character = source[index];
+        if (quoted) {
+          if (escaped) escaped = false;
+          else if (character === '\\') escaped = true;
+          else if (character === '"') quoted = false;
+        } else if (character === '"') quoted = true;
+        else if (character === '{') depth++;
+        else if (character === '}' && --depth === 0) {
+          try {
+            const details = JSON.parse(source.slice(start, index + 1)).videoDetails;
+            if (details?.videoId === videoId && typeof details.shortDescription === 'string') return details.shortDescription.trim();
+          } catch { /* The page can contain a partial or non-JSON assignment. */ }
+          break;
+        }
+      }
+    }
+    return '';
+  }
+
   function shortsMetadata(document, videoId) {
     const active = document.querySelector('ytd-reel-video-renderer[is-active], ytd-reel-video-renderer[active], ytd-reel-video-renderer.active');
     const canonical = document.querySelector('link[rel="canonical"]')?.getAttribute('href')
@@ -91,6 +120,7 @@
         || document.querySelector('link[itemprop="name"]')?.getAttribute('content')?.trim() || '',
       description: textAt(document, '#description-inline-expander, #description ytd-text-inline-expander'),
     };
+    metadata.description = playerDescription(document, videoId) || metadata.description;
     return {
       videoId,
       title: metadata.title,

@@ -146,6 +146,15 @@ describe('YouTube visible snapshot', () => {
     expect(() => video.snapshot(document, shortUrl)).toThrow(/切换|匹配/);
   });
 
+  it('prefers the full current-video description over rendered controls and rejects stale player data', () => {
+    const video = loadVideo();
+    const document = page(`<script>var ytInitialPlayerResponse = ${JSON.stringify({ videoDetails: { videoId: 'M7lc1UVf-VE', shortDescription: '第一句。第二句。第三句。' } })};</script>
+      <div id="description-inline-expander">第一句。第二句。第三句。 …更多 2.03万位订阅者 视频详细信息</div>`);
+    expect(video.snapshot(document, url).description).toBe('第一句。第二句。第三句。');
+    document.querySelector('script')!.textContent = `var ytInitialPlayerResponse = ${JSON.stringify({ videoDetails: { videoId: 'abcdefghijk', shortDescription: 'Previous video' } })};`;
+    expect(video.snapshot(document, url).description).not.toContain('Previous video');
+  });
+
   it('content listener keeps the message channel open while collecting and checks the active ID', async () => {
     const video = loadVideo();
     let listener: any;

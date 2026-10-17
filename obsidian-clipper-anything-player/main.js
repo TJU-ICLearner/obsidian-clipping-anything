@@ -320,89 +320,91 @@ module.exports = class ObsidianClipperAnythingPlayer extends Plugin {
     const session = { notePath: note.path, source, videoId, dock, progressTimer: null, observer: null,
       click: null, keydown: null, controller: null };
     this.playerSessions.set(preview, session);
+    const cues = parseTranscript(markdown);
     const header = dock.createDiv({ cls: "oca-player-header" });
-    header.createSpan({ text: "YouTube · 笔记字幕联动", cls: "oca-player-title" });
-    const status = dock.createDiv({ text: "播放器准备中…", cls: "oca-player-hint" });
+    header.createSpan({ text: cues.length ? "YouTube · 笔记字幕联动" : "YouTube · 笔记视频", cls: "oca-player-title" });
+    const status = dock.createDiv({ text: cues.length ? "播放器准备中…" : "播放器准备中… 无时间轴文字不支持跳转或高亮。", cls: "oca-player-hint" });
     status.setAttribute("role", "status");
     const iframe = dock.createEl("iframe", { cls: "oca-iframe" });
     iframe.setAttribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-presentation");
     iframe.setAttribute("allow", "autoplay; encrypted-media; fullscreen; picture-in-picture");
     iframe.setAttribute("allowfullscreen", "true");
     iframe.src = source;
-    const cues = parseTranscript(markdown);
-    const transcript = dock.createDiv({ cls: "oca-transcript" });
-    const buttons = [];
-    if (!cues.length) transcript.createDiv({ text: "这篇笔记没有带时间戳的字幕。", cls: "oca-player-hint" });
-    for (const cue of cues) {
-      const button = transcript.createEl("button", { cls: "oca-cue" });
-      button.createSpan({ text: cue.stamp, cls: "oca-cue-time" });
-      button.createSpan({ text: cue.text, cls: "oca-cue-text" });
-      buttons.push(button);
-    }
-    let activeCue = -1;
-    const showProgress = (seconds) => {
-      let index = -1;
-      for (let i = 0; i < cues.length; i++) {
-        if (cues[i].seconds <= seconds) index = i;
-        else break;
+    let showProgress = () => {};
+    if (cues.length) {
+      const transcript = dock.createDiv({ cls: "oca-transcript" });
+      const buttons = [];
+      for (const cue of cues) {
+        const button = transcript.createEl("button", { cls: "oca-cue" });
+        button.createSpan({ text: cue.stamp, cls: "oca-cue-time" });
+        button.createSpan({ text: cue.text, cls: "oca-cue-text" });
+        buttons.push(button);
       }
-      if (index === activeCue) return;
-      if (activeCue >= 0) buttons[activeCue].removeClass("is-active");
-      activeCue = index;
-      if (index >= 0) buttons[index].addClass("is-active");
-    };
-    const seek = async (seconds) => {
-      status.textContent = "正在跳转笔记视频…";
-      try {
-        if (!session.controller) throw new Error("笔记视频还未准备好，请稍后重试。");
-        await session.controller.seek(seconds);
-        if (this.playerSessions.get(preview) === session) status.textContent = "已跳转笔记内视频。";
-      } catch (error) {
-        if (this.playerSessions.get(preview) === session) status.textContent = error.message;
-      }
-    };
-    buttons.forEach((button, index) => button.addEventListener("click", () => void seek(cues[index].seconds)));
-    session.click = (event) => {
-      if (dock.contains(event.target)) return;
-      const code = event.target.closest?.("code");
-      if (code && !code.closest("pre") && /^\d{2}:\d{2}(?::\d{2})?$/.test(code.textContent.trim())) {
+      let activeCue = -1;
+      showProgress = (seconds) => {
+        let index = -1;
+        for (let i = 0; i < cues.length; i++) {
+          if (cues[i].seconds <= seconds) index = i;
+          else break;
+        }
+        if (index === activeCue) return;
+        if (activeCue >= 0) buttons[activeCue].removeClass("is-active");
+        activeCue = index;
+        if (index >= 0) buttons[index].addClass("is-active");
+      };
+      const seek = async (seconds) => {
+        status.textContent = "正在跳转笔记视频…";
+        try {
+          if (!session.controller) throw new Error("笔记视频还未准备好，请稍后重试。");
+          await session.controller.seek(seconds);
+          if (this.playerSessions.get(preview) === session) status.textContent = "已跳转笔记内视频。";
+        } catch (error) {
+          if (this.playerSessions.get(preview) === session) status.textContent = error.message;
+        }
+      };
+      buttons.forEach((button, index) => button.addEventListener("click", () => void seek(cues[index].seconds)));
+      session.click = (event) => {
+        if (dock.contains(event.target)) return;
+        const code = event.target.closest?.("code");
+        if (code && !code.closest("pre") && /^\d{2}:\d{2}(?::\d{2})?$/.test(code.textContent.trim())) {
+          const linked = code.closest("a[href]");
+          if (linked && !youtubeLinkMatches(linked.href, videoId, secondsFromStamp(code.textContent.trim()))) return;
+          event.preventDefault(); event.stopPropagation();
+          void seek(secondsFromStamp(code.textContent.trim()));
+          return;
+        }
+        const anchor = event.target.closest?.("a[href]");
+        if (!anchor || !/^\d{2}:\d{2}(?::\d{2})?$/.test(anchor.textContent.trim())) return;
+        const seconds = secondsFromStamp(anchor.textContent.trim());
+        if (!youtubeLinkMatches(anchor.href, videoId, seconds)) return;
+        event.preventDefault(); event.stopPropagation();
+        void seek(seconds);
+      };
+      preview.addEventListener("click", session.click, true);
+      session.keydown = (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        const code = event.target.closest?.("code.oca-note-timestamp");
+        if (!code || dock.contains(code)) return;
         const linked = code.closest("a[href]");
         if (linked && !youtubeLinkMatches(linked.href, videoId, secondsFromStamp(code.textContent.trim()))) return;
         event.preventDefault(); event.stopPropagation();
         void seek(secondsFromStamp(code.textContent.trim()));
-        return;
-      }
-      const anchor = event.target.closest?.("a[href]");
-      if (!anchor || !/^\d{2}:\d{2}(?::\d{2})?$/.test(anchor.textContent.trim())) return;
-      const seconds = secondsFromStamp(anchor.textContent.trim());
-      if (!youtubeLinkMatches(anchor.href, videoId, seconds)) return;
-      event.preventDefault(); event.stopPropagation();
-      void seek(seconds);
-    };
-    preview.addEventListener("click", session.click, true);
-    session.keydown = (event) => {
-      if (event.key !== "Enter" && event.key !== " ") return;
-      const code = event.target.closest?.("code.oca-note-timestamp");
-      if (!code || dock.contains(code)) return;
-      const linked = code.closest("a[href]");
-      if (linked && !youtubeLinkMatches(linked.href, videoId, secondsFromStamp(code.textContent.trim()))) return;
-      event.preventDefault(); event.stopPropagation();
-      void seek(secondsFromStamp(code.textContent.trim()));
-    };
-    preview.addEventListener("keydown", session.keydown, true);
-    const prepare = () => {
-      for (const code of preview.querySelectorAll("code")) {
-        if (dock.contains(code) || code.closest("pre") || !/^\d{2}:\d{2}(?::\d{2})?$/.test(code.textContent.trim())) continue;
-        const linked = code.closest("a[href]");
-        if (linked && !youtubeLinkMatches(linked.href, videoId, secondsFromStamp(code.textContent.trim()))) continue;
-        code.classList.add("oca-note-timestamp");
-        code.setAttribute("role", "button");
-        code.setAttribute("tabindex", "0");
-      }
-    };
-    prepare();
-    session.observer = new MutationObserver(prepare);
-    session.observer.observe(preview, { childList: true, subtree: true });
+      };
+      preview.addEventListener("keydown", session.keydown, true);
+      const prepare = () => {
+        for (const code of preview.querySelectorAll("code")) {
+          if (dock.contains(code) || code.closest("pre") || !/^\d{2}:\d{2}(?::\d{2})?$/.test(code.textContent.trim())) continue;
+          const linked = code.closest("a[href]");
+          if (linked && !youtubeLinkMatches(linked.href, videoId, secondsFromStamp(code.textContent.trim()))) continue;
+          code.classList.add("oca-note-timestamp");
+          code.setAttribute("role", "button");
+          code.setAttribute("tabindex", "0");
+        }
+      };
+      prepare();
+      session.observer = new MutationObserver(prepare);
+      session.observer.observe(preview, { childList: true, subtree: true });
+    }
     try {
       if (!this.youtubeControllerFactory) {
         const modulePath = path.join(this.app.vault.adapter.getBasePath(), this.app.vault.configDir || ".obsidian",
@@ -410,8 +412,9 @@ module.exports = class ObsidianClipperAnythingPlayer extends Plugin {
         this.youtubeControllerFactory = require(modulePath).createYouTubeController;
       }
       session.controller = this.youtubeControllerFactory(iframe, videoId, {
-        onReady: () => { if (this.playerSessions.get(preview) === session) status.textContent = "点击字幕时间可跳转，播放进度会高亮字幕。"; },
-        onTime: (seconds) => { if (this.playerSessions.get(preview) === session) showProgress(seconds); },
+        onReady: () => { if (this.playerSessions.get(preview) === session) status.textContent = cues.length
+          ? "点击字幕时间可跳转，播放进度会高亮字幕。" : "视频可在笔记内播放。文字无时间轴，不支持按字幕跳转或高亮。"; },
+        onTime: (seconds) => { if (cues.length && this.playerSessions.get(preview) === session) showProgress(seconds); },
         onError: (error) => { if (this.playerSessions.get(preview) === session) status.textContent = error.message; },
       });
     } catch (error) { status.textContent = error.message; }

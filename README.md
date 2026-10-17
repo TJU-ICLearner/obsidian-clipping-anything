@@ -4,7 +4,7 @@
 
 这个项目始于把 [Obsidian Web Clipper](https://github.com/obsidianmd/obsidian-clipper) 的网页剪藏能力和 [Bilibili Obsidian Clipper](https://github.com/haixiong1997/Bilibili-Obsidian-Clipper) 的视频字幕能力放进同一个扩展。长期目标是用一致的入口剪藏不同平台的文章、帖子、视频与字幕，并让保存后的媒体笔记在 Obsidian 中保持可阅读、可播放、可定位到具体片段。
 
-本分支的 YouTube 交付候选版本是 **Chrome 扩展 1.1.2 + Obsidian 配套插件 1.3.0**。此前的公开稳定版仍可从 Releases 下载。项目是独立社区整合版本，并非 Obsidian 官方扩展。
+本分支的 YouTube 交付候选版本是 **Chrome 扩展 1.1.3 + Obsidian 配套插件 1.3.1**。此前的公开稳定版仍可从 Releases 下载。项目是独立社区整合版本，并非 Obsidian 官方扩展。
 
 ## 平台支持状态
 
@@ -13,8 +13,8 @@
 | 普通网页 | 已支持 | 使用通用网页剪藏：正文提取、模板、属性、标注和阅读模式。具体提取效果取决于网页结构。 |
 | 微信公众号网页 | 通用网页模式 | 可按网页剪藏；目前没有单独的微信解析器或针对所有文章格式的兼容承诺。 |
 | Bilibili 视频 | 专用模式已支持 | 视频信息、可访问的字幕轨、章节和带时间戳的笔记；配套插件实现笔记内视频与字幕联动。 |
-| YouTube 普通视频 | 交付候选 | 专用模式读取页面已显示的文字记录；保存后在桌面 Obsidian 阅读视图中播放、按时间跳转并高亮字幕。 |
-| YouTube Shorts | 交付候选 | 支持标准 Shorts 链接、视频信息与笔记内播放器；有可见文字记录时读取，没有时保存视频信息并明确提示。指定示例的实际播放仍待验证。 |
+| YouTube 普通视频 | 交付候选 | 专用模式读取页面已显示的带时间文字记录；无法取得时，可将明显的口播式简介整理为无时间文字。只有带时间的字幕支持笔记内跳转和高亮。 |
+| YouTube Shorts | 交付候选 | 支持标准 Shorts 链接、视频信息与笔记内播放器；无可见文字记录时，符合条件的简介可整理为无时间文字，并可到普通播放页继续检查。 |
 | X / Twitter | 规划中 | 现可尝试通用网页剪藏；帖子串、引用及媒体的专用整理尚未发布。 |
 | 小红书 | 规划中 | 现可尝试通用网页剪藏；图文与视频的专用适配尚未发布。 |
 
@@ -42,9 +42,10 @@
 
 - 普通 `youtube.com/watch?v=...` 视频和标准 `youtube.com/shorts/...` 链接进入 YouTube 专用模式；可随时切换到“网页剪藏”，再从网页模式返回。
 - 只读取 YouTube 页面**已打开的文字记录**。普通视频先打开“显示文字记录”，再点击扩展弹窗的“刷新”；扩展会依次滚动文字记录、收集逐段渲染的字幕，并恢复原滚动位置。不会从隐藏接口下载字幕；若未能遍历到末尾，弹窗显示已抓取条数及“可能不完整”。
-- 没有可见文字记录时，仍可保存标题、频道、来源与笔记内播放器；`## 字幕` 明确提示未读取到字幕。Shorts 弹窗会说明本次只能保存视频信息，并提供按钮在当前标签页打开同一视频的普通播放页，以检查那里是否有“显示文字记录”。若普通页也没有，本版不会生成字幕。
+- 没有可见的带时间文字记录时，会优先读取与当前视频 ID 匹配的原始视频简介，清掉页面按钮、统计数字、标签等杂项。若简介包含明显的连续口播文字，`## 字幕` 会按句排列并标注“由视频简介整理，未经音频校对，无时间轴”；纯链接或宣传内容仍留在简介，不冒充字幕。此模式没有时间跳转或高亮，也不会猜测时间戳。
+- Shorts 弹窗在没有可读时间字幕时，提供按钮在当前标签页打开同一视频的普通播放页，以检查那里是否有“显示文字记录”。没有适合整理的口播文字时，仅保存视频信息并明确提示。
 - 弹窗可预览完整 Markdown、选择与网页及 B 站模式共用的仓库、指定独立目标文件夹。每次剪藏生成新文件名；保存前写入系统剪贴板，再发出 Obsidian URI。弹窗只提示已交给 Obsidian，需到目标仓库核对笔记。
-- 配套插件在**阅读视图**把 YouTube 嵌入视频固定于笔记开头，点击字幕时间控制这一播放器；播放进度反向高亮字幕。滚动离开视频后仍保持同一会话。部分视频可能禁止嵌入，此时插件会显示错误状态。
+- 配套插件在**阅读视图**把 YouTube 嵌入视频放在笔记开头；有时间轴的字幕可点击时间控制播放器，播放进度反向高亮字幕。无时间轴笔记只保留视频播放和普通文字，不显示时间按钮。滚动离开视频后仍保持同一会话。部分视频可能禁止嵌入，此时插件会显示错误状态。
 
 ### 4. 一个入口，统一保存设置
 
@@ -68,8 +69,8 @@
 
 本分支的候选版请先按下方“从源码构建与验证”生成 `builds/` 中的两个 ZIP；[Releases](https://github.com/TJU-ICLearner/obsidian-clipping-anything/releases/latest) 目前提供已发布的稳定版。安装候选版时：
 
-1. **Chrome 扩展**：解压 `obsidian-clipping-anything-1.1.2-chrome.zip` 到固定目录。打开 `chrome://extensions/`，开启“开发者模式”，选择“加载已解压的扩展程序”，选中解压后**直接包含 `manifest.json` 的目录**。
-2. **Obsidian 配套插件**：解压 `obsidian-clipping-anything-player-1.3.0.zip` 到目标仓库的 `.obsidian/plugins/`。最终应存在 `.obsidian/plugins/obsidian-clipper-anything-player/manifest.json`，同目录还有 `main.js`、`styles.css` 和 `youtube-player.js`。在 Obsidian 的“设置 → 第三方插件”中启用 **Obsidian Clipping Anything Player**。
+1. **Chrome 扩展**：解压 `obsidian-clipping-anything-1.1.3-chrome.zip` 到固定目录。打开 `chrome://extensions/`，开启“开发者模式”，选择“加载已解压的扩展程序”，选中解压后**直接包含 `manifest.json` 的目录**。
+2. **Obsidian 配套插件**：解压 `obsidian-clipping-anything-player-1.3.1.zip` 到目标仓库的 `.obsidian/plugins/`。最终应存在 `.obsidian/plugins/obsidian-clipper-anything-player/manifest.json`，同目录还有 `main.js`、`styles.css` 和 `youtube-player.js`。在 Obsidian 的“设置 → 第三方插件”中启用 **Obsidian Clipping Anything Player**。
 3. 完全重启 Obsidian，使用扩展剪藏 B 站或 YouTube 视频；在保存笔记的阅读视图中播放顶部视频，点击字幕时间即可跳转。
 
 更新解压版扩展时，先在 `chrome://extensions/` 确认该扩展显示的版本与安装包一致，并确认 Chrome 加载的是刚更新的目录；“重新加载”只会重载原目录中的文件。然后点“重新加载”，刷新已打开的 B 站或 YouTube 页面。更新 Obsidian 插件后，请完全退出并重开 Obsidian。插件 ID 和文件夹名沿用 `obsidian-clipper-anything-player`，升级时覆盖原文件夹即可。**Chrome 安装包和 Obsidian 插件包不可互换加载。**

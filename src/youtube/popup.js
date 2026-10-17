@@ -27,8 +27,9 @@
     } catch { return null; }
   }
   function transcriptSummary(snapshot) {
-    if (snapshot.transcriptState === 'complete') return `已遍历文字记录，读取 ${snapshot.cues.length} 条字幕。`;
-    if (snapshot.transcriptState === 'possibly-incomplete') return `已读取 ${snapshot.cues.length} 条页面文字记录；页面可能只渲染了一部分，结果可能不完整。`;
+    if (snapshot.cues.length && snapshot.transcriptState === 'complete') return `已遍历文字记录，读取 ${snapshot.cues.length} 条字幕。`;
+    if (snapshot.cues.length && snapshot.transcriptState === 'possibly-incomplete') return `已读取 ${snapshot.cues.length} 条页面文字记录；页面可能只渲染了一部分，结果可能不完整。`;
+    if (globalThis.OcaYouTubeNote?.untimedSentences(snapshot.description, snapshot.title).length) return '未取得带时间的文字记录；将从简介整理无时间轴文字，未经音频校对。不能按字幕跳转或高亮。';
     if (shortsWatchUrl(snapshot)) return '当前 Shorts 页面没有可读取的文字记录；本次只会保存视频信息。可到普通播放页查看是否有“显示文字记录”。';
     if (snapshot.transcriptState === 'open-empty') return '文字记录已打开，但当前没有可读取的字幕；可以仅保存视频信息。';
     return '在 YouTube 打开文字记录后，点击这里的刷新。当前可以仅保存视频信息。';
@@ -49,7 +50,9 @@
     el.source.textContent = captured.url;
     el['transcript-status'].textContent = transcriptSummary(captured);
     el['open-watch'].hidden = !shortsWatchUrl(captured);
-    el['transcript-preview'].textContent = captured.cues.slice(0, 30).map(cue => `${globalThis.OcaYouTubeNote.stamp(cue.start)}  ${cue.text}`).join('\n');
+    el['transcript-preview'].textContent = captured.cues.length
+      ? captured.cues.slice(0, 30).map(cue => `${globalThis.OcaYouTubeNote.stamp(cue.start)}  ${cue.text}`).join('\n')
+      : globalThis.OcaYouTubeNote.untimedSentences(captured.description, captured.title).slice(0, 30).join('\n');
     try {
       note = globalThis.OcaYouTubeNote.build(captured, { folder: el.folder.value.trim() });
       el.filepath.textContent = note.filepath;
